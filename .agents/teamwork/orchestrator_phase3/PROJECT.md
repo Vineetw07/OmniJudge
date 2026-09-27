@@ -22,31 +22,31 @@
 - `PROGRESS.md`: Project ledger and phase tracker.
 
 ## Feature Inventory
-| # | Feature | Description | Milestone | Source |
-|---|---------|-------------|-----------|--------|
-| 1 | Server Component Auth Helper | `getServerSession()` in `src/lib/auth.ts` using `cookies()` | M1 | Survey |
-| 2 | Judge Scores GET API | `GET /api/judge/scores` returns 200 with own scores for authenticated judge | M1 | ORIGINAL_REQUEST R1 |
-| 3 | Strict RBAC Peer Isolation | `GET /api/judge/scores?judge=user_jdg_a_01` returns 403 when accessed by judge_b | M1 | ORIGINAL_REQUEST R1 |
-| 4 | Non-Judge Scores Blocking | `GET /api/judge/scores` returns 403 for participant and 401 for unauthenticated | M1 | ORIGINAL_REQUEST R1 |
-| 5 | Judge Score Submission POST API | `POST /api/judge/scores` accepts rubric-based scores with Zod validation | M1 | ORIGINAL_REQUEST R2 |
-| 6 | Track Assignment Enforcement | Verify judge is assigned to project's track before saving scores | M1 | ORIGINAL_REQUEST R2 |
-| 7 | Immutable Audit Logging | Creates `AuditLog` entry (`action: "score_submitted"`) inside Prisma transaction | M1 | ORIGINAL_REQUEST R2 |
-| 8 | Organizer CSV Export Access Control | `GET /api/export.csv` returns 403 for judges, participants, and anonymous | M2 | ORIGINAL_REQUEST R3 |
-| 9 | MAD Score Normalization in CSV | Computes normalized scores using `src/lib/normalization.ts` with zero-variance protection | M2 | ORIGINAL_REQUEST R3 |
-| 10 | CSV Header & Formatting | Valid CSV with comma in line 1 and UTF-8 charset | M2 | ORIGINAL_REQUEST R3 |
-| 11 | Judge Portal UI | `/judge` responsive interface for assigned projects and rubric scoring | M3 | ORIGINAL_REQUEST R4 |
-| 12 | Organizer Dashboard UI | `/dashboard` progress metrics, judge status table, and leaderboard preview | M3 | ORIGINAL_REQUEST R4 |
-| 13 | Acceptance Suite Verification | `python Hack_docs/run.py .dogfood.toml` all 7 checks PASS (claimed T1 T2, verified T1 T2) | M4 | ORIGINAL_REQUEST Acceptance |
-| 14 | Zero Type Errors | `npm run typecheck` exits with 0 errors | M4 | ORIGINAL_REQUEST Acceptance |
-| 15 | Progress Ledger & Git Commit | Update `PROGRESS.md` with T2 deliverables and commit `[PROGRESS] Phase 3: ...` | M4 | ORIGINAL_REQUEST R5 |
+| # | Feature | Description | Milestone | Source | Status |
+|---|---------|-------------|-----------|--------|--------|
+| 1 | Server Component Auth Helper | `getServerSession()` in `src/lib/auth.ts` using `cookies()` | M1 | Survey | DONE |
+| 2 | Judge Scores GET API | `GET /api/judge/scores` returns 200 with own scores for authenticated judge | M1 | ORIGINAL_REQUEST R1 | DONE |
+| 3 | Strict RBAC Peer Isolation | `GET /api/judge/scores?judge=user_jdg_a_01` returns 403 when accessed by judge_b | M1 | ORIGINAL_REQUEST R1 | DONE |
+| 4 | Non-Judge Scores Blocking | `GET /api/judge/scores` returns 403 for participant and 401 for unauthenticated | M1 | ORIGINAL_REQUEST R1 | DONE |
+| 5 | Judge Score Submission POST API | `POST /api/judge/scores` accepts rubric-based scores with Zod validation | M1 | ORIGINAL_REQUEST R2 | DONE |
+| 6 | Track Assignment Enforcement | Verify judge is assigned to project's track before saving scores | M1 | ORIGINAL_REQUEST R2 | DONE |
+| 7 | Immutable Audit Logging | Creates `AuditLog` entry (`action: "score_submitted"`) inside Prisma transaction | M1 | ORIGINAL_REQUEST R2 | DONE |
+| 8 | Organizer CSV Export Access Control | `GET /api/export.csv` returns 403 for judges, participants, and anonymous | M2 | ORIGINAL_REQUEST R3 | DONE |
+| 9 | MAD Score Normalization in CSV | Computes normalized scores using `src/lib/normalization.ts` with zero-variance protection | M2 | ORIGINAL_REQUEST R3 | DONE |
+| 10 | CSV Header & Formatting | Valid CSV with comma in line 1 and UTF-8 charset | M2 | ORIGINAL_REQUEST R3 | DONE |
+| 11 | Judge Portal UI | `/judge` responsive interface for assigned projects and rubric scoring | M3 | ORIGINAL_REQUEST R4 | DONE |
+| 12 | Organizer Dashboard UI | `/dashboard` progress metrics, judge status table, and leaderboard preview | M3 | ORIGINAL_REQUEST R4 | DONE |
+| 13 | Acceptance Suite Verification | `python Hack_docs/run.py .dogfood.toml` all 7 checks PASS (claimed T1 T2, verified T1 T2) | M4 | ORIGINAL_REQUEST Acceptance | DONE |
+| 14 | Zero Type Errors | `npm run typecheck` exits with 0 errors | M4 | ORIGINAL_REQUEST Acceptance | DONE |
+| 15 | Progress Ledger & Git Commit | Update `PROGRESS.md` with T2 deliverables and commit `[PROGRESS] Phase 3: ...` | M4 | ORIGINAL_REQUEST R5 | DONE |
 
 ## Milestones
 | # | Name | Scope | Dependencies | Status |
 |---|------|-------|-------------|--------|
-| 1 | M1: Judge Scores API & RBAC Isolation | `src/lib/auth.ts`, `src/app/api/judge/scores/route.ts` | None | IN_PROGRESS |
-| 2 | M2: Organizer CSV Export with MAD | `src/app/api/export.csv/route.ts` | M1 | PLANNED |
-| 3 | M3: Judging Portal & Dashboard UI | `src/app/judge/page.tsx`, `src/app/dashboard/page.tsx` | M1, M2 | PLANNED |
-| 4 | M4: Acceptance, Ledger & Git Commit | `Hack_docs/run.py`, `PROGRESS.md`, git commit | M1, M2, M3 | PLANNED |
+| 1 | M1: Judge Scores API & RBAC Isolation | `src/lib/auth.ts`, `src/app/api/judge/scores/route.ts` | None | DONE |
+| 2 | M2: Organizer CSV Export with MAD | `src/app/api/export.csv/route.ts` | M1 | DONE |
+| 3 | M3: Judging Portal & Dashboard UI | `src/app/judge/page.tsx`, `src/app/dashboard/page.tsx` | M1, M2 | DONE |
+| 4 | M4: Acceptance, Ledger & Git Commit | `Hack_docs/run.py`, `PROGRESS.md`, git commit | M1, M2, M3 | DONE |
 
 ## Interface Contracts
 ### Auth Helper Contract (`src/lib/auth.ts`)
