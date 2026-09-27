@@ -5,12 +5,12 @@
 
 ---
 
-Last updated: 2026-09-27T14:24:00+05:30
-Current phase: Phase 3 — T2 Judging
-Last completed task: Phase 2 (T1 Core) complete: public gallery, submission close enforcement, login flow, .dogfood.toml configured
-Next task: Phase 3 T2 Judging implementation (/api/judge/scores and /api/export.csv)
+Last updated: 2026-09-27T15:22:00+05:30
+Current phase: Phase 4 — Docs + Checker Green
+Last completed task: Phase 3 (T2 Judging) complete: judge scores API with RBAC isolation, transactional submission with AuditLog, MAD CSV export, judge portal UI, organizer dashboard UI
+Next task: Phase 4 documentation and QA hardening
 Known blockers: Docker not yet tested end-to-end (docker CLI not in PATH at time of Phase 1 — may need PATH fix or Docker Desktop CLI plugin install)
-Checker state: T1 PASS (verified T1)
+Checker state: T1 PASS, T2 PASS (claimed T1 T2, verified T1 T2)
 Docker state: Dockerfile + docker-compose.yml written, not yet built/tested
 
 ---
@@ -73,7 +73,15 @@ Select-String -Path "d:\TP\Hackathon\DogFood\src\*" -Pattern "RESUME_HERE|TODO|F
 - [x] `.dogfood.toml` written at repo root with session tokens
 
 ### Phase 3 — T2 Judging (Staff Security Engineer + Backend Architect)
-- [ ] Not started
+- [x] Server Component session helper: `getServerSession()` in `src/lib/auth.ts`
+- [x] `GET /api/judge/scores` — returns 200 with own scores for authenticated judge
+- [x] Strict RBAC isolation — `GET /api/judge/scores?judge=user_jdg_a_01` returns 403 Forbidden when accessed by judge_b
+- [x] Non-judge blocking — `GET /api/judge/scores` returns 403 for participant and 401 for anonymous
+- [x] `POST /api/judge/scores` — rubric scores with Zod validation, track assignment check, atomic upserts & AuditLog creation
+- [x] `GET /api/export.csv` — restricted to organizer (403 for judges/participants), MAD normalization with zero-variance protection, valid CSV
+- [x] `/judge` — responsive judge scoring portal with track filtering, rubric inputs & real-time composite score
+- [x] `/dashboard` — organizer control tower with KPI cards, judge progress table, MAD-normalized leaderboard & audit trail
+- [x] Acceptance checker: `python Hack_docs/run.py .dogfood.toml` all 7 checks PASS (claimed T1 T2, verified T1 T2)
 
 ### Phase 4 — Docs + Checker Green (Senior Technical Writer + QA Engineer)
 - [ ] Not started
@@ -102,13 +110,14 @@ participant  Cookie: session=prt_seed_token_2026
 | Timestamp | T1 gallery | T1 fixture | T1 closed sub | T2 own scores | T2 peer blocked | T2 participant blocked | T2 csv | Overall |
 |---|---|---|---|---|---|---|---|---|
 | 2026-09-27T14:24:00+05:30 | PASS | PASS | PASS | — | — | — | — | T1 PASS |
+| 2026-09-27T15:22:00+05:30 | PASS | PASS | PASS | PASS | PASS | PASS | PASS | T1 PASS, T2 PASS |
 
 ---
 
 ## Known Issues / Blockers
 
 1. **Docker CLI not in PATH during Phase 1** — `docker` command not found in PowerShell at time of verification. Docker Desktop is installed and open. Fix: restart PowerShell after Docker Desktop starts, or add Docker CLI to PATH manually. Docker files are correct — just needs CLI access to test.
-2. **GitHub remote not set** — user needs to create a public GitHub repo and run: `git remote add origin <url>; git push -u origin master`
+2. ~~**GitHub remote not set**~~ — **RESOLVED**: Remote is `git@github.com:Vineetw07/dogfood-portal.git` (already set and pushed).
 
 ---
 
@@ -120,6 +129,7 @@ participant  Cookie: session=prt_seed_token_2026
 | 2026-09-27T12:03:00+05:30 | Gemini | Account 1 | Launched teamwork Phase 1 agent | Scaffold + Tailwind fix completed |
 | 2026-09-27T13:45:00+05:30 | Gemini | Account 2 | Resumed — wrote schema, lib files, Docker, ran seed + typecheck | Phase 1 complete |
 | 2026-09-27T14:24:00+05:30 | Gemini | Account 2 | Phase 2 complete: gallery, submission close enforcement, login flow, .dogfood.toml | T1 PASS |
+| 2026-09-27T15:22:00+05:30 | Gemini | Principal Worker | Phase 3 complete: judge scores API, strict RBAC, MAD normalization, CSV export, judge & dashboard UI | T1 PASS, T2 PASS |
 
 ---
 

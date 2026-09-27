@@ -1,4 +1,5 @@
 import { NextRequest } from 'next/server';
+import { cookies } from 'next/headers';
 import { prisma } from './prisma';
 
 /**
@@ -25,6 +26,35 @@ export async function getSession(req: NextRequest): Promise<SessionUser | null> 
   const cookieHeader = req.headers.get('cookie') ?? '';
   const sessionCookie = req.cookies.get('session');
   const token = sessionCookie?.value ?? extractSessionFromCookieHeader(cookieHeader);
+
+  if (!token) return null;
+
+  const session = await prisma.session.findUnique({
+    where: { id: token },
+    include: { user: true },
+  });
+
+  if (!session) return null;
+  if (session.expiresAt < new Date()) return null;
+
+  const role = session.user.role as SessionUser['role'];
+
+  return {
+    id: session.user.id,
+    email: session.user.email,
+    name: session.user.name,
+    role,
+    judgeId: role === 'judge' ? session.user.id : undefined,
+  };
+}
+
+/**
+ * Server Component authentication helper using `cookies()` from `next/headers`.
+ * Safe for use directly in React Server Components (`page.tsx`, `layout.tsx`).
+ */
+export async function getServerSession(): Promise<SessionUser | null> {
+  const cookieStore = cookies();
+  const token = cookieStore.get('session')?.value;
 
   if (!token) return null;
 

@@ -1,4 +1,4 @@
-# BRIEFING — 2026-09-27T08:53:30Z
+# BRIEFING — 2026-09-27T08:58:00Z
 
 ## Mission
 Orchestrate Phase 2 — T1 Core of DOGFOOD 2026 to implement public gallery, submission close enforcement, login flow, .dogfood.toml configuration, and pass all T1 checks.
@@ -17,7 +17,7 @@ Orchestrate Phase 2 — T1 Core of DOGFOOD 2026 to implement public gallery, sub
    - Phase 2 orientation & exploration (DONE)
    - Implementation: R1 Gallery, R2 Submission Close, R3 Login, R4 .dogfood.toml (DONE)
    - Verification & Review: 2 Reviewers, 2 Challengers, 1 Auditor (DONE - GATE PASS)
-   - Ledger & Commit: PROGRESS.md, git commit (IN-PROGRESS)
+   - Ledger & Commit: PROGRESS.md, git commit (DONE)
 2. **Dispatch & Execute**:
    - Direct iteration loop: Explorer -> Worker -> Reviewers + Challengers + Forensic Auditor -> Gate.
 3. **On failure**:
@@ -28,9 +28,9 @@ Orchestrate Phase 2 — T1 Core of DOGFOOD 2026 to implement public gallery, sub
   1. Orientation & Technical Investigation [done]
   2. Implementation: R1, R2, R3, R4 [done]
   3. Verification & Gating [done - GATE PASS]
-  4. PROGRESS.md update & git commit [in-progress]
-- **Current phase**: 4 (Final Ledger Update & Commit)
-- **Current focus**: worker_phase2_commit
+  4. PROGRESS.md update & git commit [done]
+- **Current phase**: Complete
+- **Current focus**: Report completion to Sentinel
 
 ## 🔒 Key Constraints
 - NEVER write, modify, or create source code files directly.
@@ -47,9 +47,7 @@ Orchestrate Phase 2 — T1 Core of DOGFOOD 2026 to implement public gallery, sub
 - Updated: 2026-09-27T08:35:00Z
 
 ## Key Decisions Made
-- All reviewers and challengers approved. Auditor gave CLEAN verdict.
-- Gate Iteration 1 passed with flying colors.
-- Dispatching final worker to apply minor trim order fix, update PROGRESS.md, and make git commit.
+- All milestones, verification checks, and commits are complete and verified.
 
 ## Team Roster
 | Agent | Type | Work Item | Status | Conv ID |
@@ -63,18 +61,18 @@ Orchestrate Phase 2 — T1 Core of DOGFOOD 2026 to implement public gallery, sub
 | challenger_phase2_1 | teamwork_preview_challenger | Acceptance suite empirical verification | completed | 9cf894f0-a88a-43dd-b128-2f107515de5f |
 | challenger_phase2_2 | teamwork_preview_challenger | Adversarial probing & edge cases | completed | fe6b2188-51b6-445a-aa82-e594268a58a1 |
 | auditor_phase2 | teamwork_preview_auditor | Forensic integrity & anti-cheat audit | completed | 1e599117-01d4-4561-86bf-916a4f0856c9 |
-| worker_phase2_commit | teamwork_preview_worker | Refinement, PROGRESS.md, git commit | in-progress | 356ff35f-ab89-446c-990d-b49be033d24b |
+| worker_phase2_commit | teamwork_preview_worker | Refinement, PROGRESS.md, git commit | completed | 356ff35f-ab89-446c-990d-b49be033d24b |
 
 ## Succession Status
 - Succession required: no
 - Spawn count: 10 / 16
-- Pending subagents: worker_phase2_commit
+- Pending subagents: none
 - Predecessor: none
 - Successor: not yet spawned
 
 ## Active Timers
-- Heartbeat cron: 186d10b4-86b5-46d2-b95c-554f456fd6cf/task-12
-- Safety timer: none
+- Heartbeat cron: killed
+- Safety timer: killed
 
 ## Artifact Index
 - DISPATCH.md — per-agent task assignment record
@@ -82,3 +80,4 @@ Orchestrate Phase 2 — T1 Core of DOGFOOD 2026 to implement public gallery, sub
 - progress.md — liveness heartbeat and step status
 - SCOPE.md — scope breakdown and milestones
 - GATE_STATUS.md — gate verdicts per iteration
+- handoff.md — orchestrator completion report
