@@ -61,8 +61,8 @@ Select-String -Path "d:\TP\Hackathon\DogFood\src\*" -Pattern "RESUME_HERE|TODO|F
 - [x] `npm run typecheck` — 0 errors
 - [x] MAD zero-variance test — `normaliseJudgeScores([3,3,3,3])` = `[0,0,0,0]` ✅
 - [x] Initial git commit pushed
-- [ ] `docker compose up` end-to-end test (docker CLI path issue — test when Docker CLI in PATH)
-- [ ] GitHub remote added (user needs to create GitHub repo and run: `git remote add origin <url>; git push -u origin master`)
+- [ ] `docker compose up` end-to-end test (run in terminal to verify container startup)
+- [x] GitHub remote added and pushed: `git@github.com:Vineetw07/dogfood-portal.git` (branch: `master`)
 
 ### Phase 2 — T1 Core (Senior Full-Stack Engineer)
 - [ ] `GET /projects` public gallery page — server-rendered HTML, NO auth required, returns 200
