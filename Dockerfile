@@ -28,21 +28,14 @@ COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/public ./public
 
-# Copy Prisma engine + schema for migrate deploy
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
+# Copy Prisma schema and engine files for migrations and seeds
 COPY --from=builder /app/prisma ./prisma
-
-# Copy fixtures + seed script (needed at container startup)
 COPY --from=builder /app/Hack_docs/fixtures.json ./Hack_docs/fixtures.json
 COPY --from=builder /app/src/lib/seed.ts ./src/lib/seed.ts
 COPY --from=builder /app/node_modules ./node_modules
 
-# Install tsx for running seed.ts at runtime
-RUN npm install -g tsx
-
 COPY entrypoint.sh ./entrypoint.sh
-RUN chmod +x ./entrypoint.sh
+RUN sed -i 's/\r$//' ./entrypoint.sh && chmod +x ./entrypoint.sh
 
 EXPOSE 8080
 CMD ["./entrypoint.sh"]
