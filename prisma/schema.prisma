@@ -1,0 +1,127 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  role      String   // "visitor" | "participant" | "judge" | "organizer" | "admin"
+  createdAt DateTime @default(now())
+
+  sessions         Session[]
+  teamMember       TeamMember?
+  judgeAssignments JudgeAssignment[]
+  scores           Score[]
+  auditLogs        AuditLog[]
+}
+
+model Session {
+  id        String   @id // the token itself
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+}
+
+model Event {
+  id               String   @id
+  name             String
+  submissionsClose DateTime
+  createdAt        DateTime @default(now())
+
+  tracks   Track[]
+  projects Project[]
+}
+
+model Track {
+  id      String @id
+  name    String
+  eventId String
+  event   Event  @relation(fields: [eventId], references: [id])
+
+  projects         Project[]
+  judgeAssignments JudgeAssignment[]
+}
+
+model Team {
+  id       String       @id
+  name     String
+
+  members  TeamMember[]
+  projects Project[]
+}
+
+model TeamMember {
+  id     String @id @default(cuid())
+  userId String @unique
+  teamId String
+  user   User   @relation(fields: [userId], references: [id])
+  team   Team   @relation(fields: [teamId], references: [id])
+}
+
+model Project {
+  id          String   @id
+  teamId      String
+  trackId     String
+  eventId     String
+  title       String
+  summary     String
+  repoUrl     String
+  submittedAt DateTime
+  isDraft     Boolean  @default(false)
+
+  team   Team    @relation(fields: [teamId], references: [id])
+  track  Track   @relation(fields: [trackId], references: [id])
+  event  Event   @relation(fields: [eventId], references: [id])
+  scores Score[]
+}
+
+model RubricCriterion {
+  id       String  @id @default(cuid())
+  name     String
+  weight   Float   @default(1.0)
+  maxScore Int     @default(5)
+
+  scores Score[]
+}
+
+model JudgeAssignment {
+  id      String @id @default(cuid())
+  userId  String
+  trackId String
+  user    User   @relation(fields: [userId], references: [id])
+  track   Track  @relation(fields: [trackId], references: [id])
+}
+
+model Score {
+  id          String   @id @default(cuid())
+  judgeId     String
+  projectId   String
+  criterionId String
+  value       Float
+  comment     String   @default("")
+  submittedAt DateTime @default(now())
+
+  judge     User            @relation(fields: [judgeId], references: [id])
+  project   Project         @relation(fields: [projectId], references: [id])
+  criterion RubricCriterion @relation(fields: [criterionId], references: [id])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String
+  action    String
+  payload   String   @default("{}")
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+}

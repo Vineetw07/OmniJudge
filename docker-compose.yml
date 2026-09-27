@@ -1,0 +1,15 @@
+version: '3.8'
+services:
+  portal:
+    build: .
+    ports:
+      - "8080:8080"
+    volumes:
+      - dogfood_data:/data
+    environment:
+      - DATABASE_URL=file:/data/dogfood.db
+      - NODE_ENV=production
+    restart: unless-stopped
+
+volumes:
+  dogfood_data:
