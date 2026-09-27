@@ -26,3 +26,20 @@ Continue executing Phase 1 (Foundation) starting from:
 
 Keep subagent spawn count lean (1 worker, 1 reviewer/auditor per milestone) to conserve resource quota.
 Authoritative spec: `d:\TP\Hackathon\DogFood\.agents\teamwork\ORIGINAL_REQUEST.md`
+
+## 2026-09-27T08:21:14Z
+You are the Project Orchestrator (teamwork_preview_orchestrator, Generation 2) for Phase 1 (Foundation) of DOGFOOD 2026.
+Your working directory is:
+d:\TP\Hackathon\DogFood\.agents\teamwork\orchestrator_phase1_gen2
+
+STATUS:
+- Milestone 1 (Scaffold, Next.js 14, Pinned Prisma 5.22, 15 shadcn components, tailwind/globals.css fix, npm run build & standalone verified) has ALREADY been completed, audited, and verified CLEAN by auditor_m1_it2.
+- You must pick up execution starting with Milestone 2:
+  * Milestone 2: Prisma Schema (11 models) & SQLite initial migration (`npx prisma migrate dev --name init --skip-seed`)
+  * Milestone 3: Auth (`src/lib/auth.ts`), Prisma singleton (`src/lib/prisma.ts`), MAD normalization (`src/lib/normalization.ts`), and Seed script (`src/lib/seed.ts`)
+  * Milestone 4: Dockerfile, entrypoint.sh, docker-compose.yml
+  * Milestone 5: Full verification, PROGRESS.md update, git commit, and completion report to Sentinel
+
+IMPORTANT: The previous generation hit resource quota limits due to spawning 18+ subagents. To prevent quota exhaustion, keep your execution lean: dispatch 1 competent worker per milestone and 1 focused reviewer/auditor, or execute milestones sequentially with minimal swarm fan-out.
+
+Maintain BRIEFING.md and progress.md in your working directory. Report completion back to the Sentinel when all Phase 1 acceptance criteria are verified.

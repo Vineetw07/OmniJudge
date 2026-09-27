@@ -456,4 +456,144 @@ docker compose up -d
 Start-Sleep -Seconds 15
 Invoke-WebRequest -Uri 'http://localhost:8080' -UseBasicParsing | Select-Object StatusCode
 docker compose logs portal | Select-String 'Cookie:'
+
+## 2026-09-27T08:33:16Z
+
+Build **Phase 2 — T1 Core** of DOGFOOD 2026, a self-hostable hackathon submission and judging platform. Phase 1 (Next.js 14 App Router, Prisma SQLite schema with 11 models, auth helpers, seed, normalization, Docker config) is fully committed. Phase 2 must pass the 3 T1 acceptance checks.
+
+Working directory: `d:\TP\Hackathon\DogFood`
+Integrity mode: development
+
+---
+
+## Context & Constraints
+
+- **Stack (locked):** Next.js 14 App Router + TypeScript, SQLite + Prisma, Tailwind CSS + shadcn/ui, hand-rolled cookie sessions
+- **OS:** Windows 10, PowerShell 5.1 — use `;` not `&&`, never `rm -rf` (use `Remove-Item -Recurse -Force`)
+- **Port:** 8080 (`next dev -p 8080`)
+- **Code freeze:** Mon 28 Sep 2026 18:00 UTC — urgency is high
+- **Global rules:**
+  - `PROGRESS.md` at repo root is the live state ledger — read it first, update + commit after every task
+  - Commit message format: `git commit -m "[PROGRESS] Phase 2: <what done>, <what next>"`
+  - Full build plan at: `C:\Users\ASUS\.gemini\antigravity\brain\7c871d10-288a-40a1-9a0f-03c7759d4999\dogfood_build_plan.md`
+  - Spec at: `d:\TP\Hackathon\DogFood\Hack_docs\spec.md`
+  - Checker: `d:\TP\Hackathon\DogFood\Hack_docs\run.py`
+  - Fixtures: `d:\TP\Hackathon\DogFood\Hack_docs\fixtures.json`
+
+---
+
+## Requirements
+
+### R1. Public project gallery at `GET /projects`
+
+Implement a Next.js App Router server component at `src/app/projects/page.tsx` that:
+- Returns HTTP 200 with **no auth required** (no redirect, no 401/403)
+- Renders the project titles from the seeded fixture data as visible HTML text in the response body — the checker looks for "Glass Signal", "Small Meadow", or "Deep Compass" (first 3 fixture project titles) as plain text strings in the HTML
+- Uses Prisma to query seeded projects (`take: 40` max, never unbounded `findMany()`)
+- Styled with Tailwind + shadcn/ui Card components
+
+### R2. Submission close check at `POST /api/projects` (or `/api/projects/new`)
+
+Implement an API route that:
+- Reads the event's `submissionsClose` timestamp from the DB (seeded from `fixtures.json` event `submissions_close = "2026-03-01T18:00:00Z"` — already in the past)
+- Compares to `Date.now()` server-side
+- Returns **409 or 403** when event is closed (the fixture event is already closed, so every POST must be refused)
+- Validates the request body with Zod (`title` + `summary` minimum)
+- Requires a valid participant session cookie — returns 401 if unauthenticated
+- Must match the `submit` route registered in `.dogfood.toml`
+
+### R3. Login page at `GET /login` + `POST /api/auth/login`
+
+Implement a login page and API endpoint that:
+- Accepts `email` in the POST body
+- Looks up the user by email in the DB
+- Sets `Cookie: session=<token>` on success (token from the `Session` table)
+- Returns 401 on unknown email
+- Does NOT use any external auth provider — hand-rolled only, works offline
+
+### R4. `.dogfood.toml` at repo root
+
+Write `.dogfood.toml` using the **exact session tokens already seeded** (printed by `npm run seed`):
+```
+organizer    Cookie: session=org_seed_token_2026
+judge_a      Cookie: session=jdg_a_seed_token_2026
+judge_b      Cookie: session=jdg_b_seed_token_2026
+participant  Cookie: session=prt_seed_token_2026
+```
+
+The file must follow the format from `Hack_docs/example.dogfood.toml`:
+```toml
+[portal]
+base_url = "http://localhost:8080"
+
+[tiers]
+claimed = ["T1", "T2"]
+pitch = "Self-hostable hackathon submission and judging platform with backend-enforced role isolation and MAD-based score normalisation."
+
+[auth]
+organizer   = "Cookie: session=org_seed_token_2026"
+judge_a     = "Cookie: session=jdg_a_seed_token_2026"
+judge_b     = "Cookie: session=jdg_b_seed_token_2026"
+participant = "Cookie: session=prt_seed_token_2026"
+
+[routes]
+gallery      = "/projects"
+submit       = "/api/projects"
+judge_scores = "/api/judge/scores"
+peer_scores  = "/api/judge/scores?judge=<judge_a_user_id>"
+csv_export   = "/api/export.csv"
+```
+
+> IMPORTANT: `peer_scores` must use the actual DB `userId` of the judge_a user (from `prisma.user.findUnique({ where: { email: 'jdg_a@example.com' } })`). The checker visits this URL as judge_b expecting a 403. Read `src/lib/seed.ts` to find the exact email used for judge_a.
+
+### R5. Update `PROGRESS.md` and commit
+
+After all tasks are done:
+- Mark all Phase 2 checkboxes `[x]`
+- Update `Last completed task`, `Next task`, and header fields
+- Commit: `git commit -m "[PROGRESS] Phase 2: T1 gallery, submit close, login, .dogfood.toml — Phase 3 T2 judging next"`
+
+---
+
+## Acceptance Criteria
+
+### T1 Gallery Check
+- [ ] `GET http://localhost:8080/projects` with NO auth header returns HTTP 200
+- [ ] The HTML response body contains the text "Glass Signal" OR "Small Meadow" OR "Deep Compass" (case-insensitive substring match)
+- [ ] Verified by: `python d:\TP\Hackathon\DogFood\Hack_docs\run.py d:\TP\Hackathon\DogFood\.dogfood.toml` shows `T1  gallery is public .... PASS` and `T1  project from fixtures shown .... PASS`
+
+### T1 Submission Close Check
+- [ ] `POST http://localhost:8080/api/projects` as participant (with `Cookie: session=prt_seed_token_2026`) returns a 4xx status code
+- [ ] Verified by: checker shows `T1  closed event refuses submissions .... PASS`
+
+### TypeScript
+- [ ] `npm run typecheck` exits with code 0 (zero type errors)
+
+### Build
+- [ ] `npm run build` succeeds (no build errors)
+
+### PROGRESS.md
+- [ ] All Phase 2 `[ ]` tasks are toggled to `[x]`
+- [ ] A `[PROGRESS]` commit is made
+
+---
+
+## Agent Orientation Protocol (MUST run first)
+
+Before writing any code, execute these orientation commands in order:
+
+```powershell
+Get-Content "d:\TP\Hackathon\DogFood\PROGRESS.md"
+git -C "d:\TP\Hackathon\DogFood" log --oneline -10
+git -C "d:\TP\Hackathon\DogFood" status
+Get-ChildItem "d:\TP\Hackathon\DogFood\src" -Recurse -Name
+```
+
+Then read:
+1. `d:\TP\Hackathon\DogFood\Hack_docs\spec.md` — the law
+2. `d:\TP\Hackathon\DogFood\Hack_docs\run.py` — lines 91–141 (T1 checks) to understand exact check logic
+3. `d:\TP\Hackathon\DogFood\src\lib\auth.ts` — existing `getSession()` helper
+4. `d:\TP\Hackathon\DogFood\src\lib\seed.ts` — to confirm seeded tokens and fixture loading
+
+Do NOT re-do any task already marked `[x]` in `PROGRESS.md`. Pick up from the first `[ ]` in Phase 2.
 ```

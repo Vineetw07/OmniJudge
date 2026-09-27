@@ -5,12 +5,12 @@
 
 ---
 
-Last updated: 2026-09-27T13:51:00+05:30
-Current phase: **Phase 2 — T1 Core** (NOT STARTED)
-Last completed task: Phase 1 fully complete — schema, seed, auth, normalization, Docker, initial commit
-Next task: `GET /projects` public gallery page (server-rendered HTML, no auth required, shows all seeded project titles)
+Last updated: 2026-09-27T14:24:00+05:30
+Current phase: Phase 3 — T2 Judging
+Last completed task: Phase 2 (T1 Core) complete: public gallery, submission close enforcement, login flow, .dogfood.toml configured
+Next task: Phase 3 T2 Judging implementation (/api/judge/scores and /api/export.csv)
 Known blockers: Docker not yet tested end-to-end (docker CLI not in PATH at time of Phase 1 — may need PATH fix or Docker Desktop CLI plugin install)
-Checker state: not yet run (.dogfood.toml not yet created)
+Checker state: T1 PASS (verified T1)
 Docker state: Dockerfile + docker-compose.yml written, not yet built/tested
 
 ---
@@ -65,12 +65,12 @@ Select-String -Path "d:\TP\Hackathon\DogFood\src\*" -Pattern "RESUME_HERE|TODO|F
 - [x] GitHub remote added and pushed: `git@github.com:Vineetw07/dogfood-portal.git` (branch: `master`)
 
 ### Phase 2 — T1 Core (Senior Full-Stack Engineer)
-- [ ] `GET /projects` public gallery page — server-rendered HTML, NO auth required, returns 200
-- [ ] Gallery body contains fixture project titles ("Glass Signal", "Small Meadow", "Deep Compass")
-- [ ] `POST /api/projects` (or `/api/submissions`) — returns 4xx when event `submissionsClose` is in the past
-- [ ] Login page at `/login` — accepts email, sets `Cookie: session=<token>` from DB
-- [ ] Full role model enforced server-side
-- [ ] `.dogfood.toml` written at repo root with session tokens
+- [x] `GET /projects` public gallery page — server-rendered HTML, NO auth required, returns 200
+- [x] Gallery body contains fixture project titles ("Glass Signal", "Small Meadow", "Deep Compass")
+- [x] `POST /api/projects` (or `/api/submissions`) — returns 4xx when event `submissionsClose` is in the past
+- [x] Login page at `/login` — accepts email, sets `Cookie: session=<token>` from DB
+- [x] Full role model enforced server-side
+- [x] `.dogfood.toml` written at repo root with session tokens
 
 ### Phase 3 — T2 Judging (Staff Security Engineer + Backend Architect)
 - [ ] Not started
@@ -101,7 +101,7 @@ participant  Cookie: session=prt_seed_token_2026
 
 | Timestamp | T1 gallery | T1 fixture | T1 closed sub | T2 own scores | T2 peer blocked | T2 participant blocked | T2 csv | Overall |
 |---|---|---|---|---|---|---|---|---|
-| — | — | — | — | — | — | — | — | not run |
+| 2026-09-27T14:24:00+05:30 | PASS | PASS | PASS | — | — | — | — | T1 PASS |
 
 ---
 
@@ -119,6 +119,7 @@ participant  Cookie: session=prt_seed_token_2026
 | 2026-09-27T11:51:00+05:30 | Claude Sonnet | Account 1 | Created plan document + PROGRESS.md | Plan approved |
 | 2026-09-27T12:03:00+05:30 | Gemini | Account 1 | Launched teamwork Phase 1 agent | Scaffold + Tailwind fix completed |
 | 2026-09-27T13:45:00+05:30 | Gemini | Account 2 | Resumed — wrote schema, lib files, Docker, ran seed + typecheck | Phase 1 complete |
+| 2026-09-27T14:24:00+05:30 | Gemini | Account 2 | Phase 2 complete: gallery, submission close enforcement, login flow, .dogfood.toml | T1 PASS |
 
 ---
 
