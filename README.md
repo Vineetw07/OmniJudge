@@ -97,7 +97,7 @@ All endpoints adhere strictly to HTTP standards, status codes, and security poli
 | `/api/community/vote` | `POST` | Any Auth | Toggles community upvote. Enforces self-vote block (`403` for team members), atomic upsert, and `COMMUNITY_VOTE_CAST` / `COMMUNITY_VOTE_RETRACTED` audit logging. |
 | `/api/community/comments` | `GET` | Public | Fetches comments for a project with author role badges and timestamps. |
 | `/api/community/comments` | `POST` | Any Auth | Posts a comment. Strips HTML, enforces 500-char limit, applies in-memory rate limiting, logs `COMMENT_POSTED` to `AuditLog`. |
-| `/api/community/settings` | `GET` / `PATCH` | Organizer | Reads and toggles `Event.resultsPublic` and `Event.votingOpen` lifecycle flags. Non-organizers receive `403`. |
+| `/api/community/settings` | `GET` / `POST` | Organizer | Reads and toggles `Event.resultsPublic` and `Event.votingOpen` lifecycle flags. Non-organizers receive `403`. |
 
 ---
 
@@ -155,10 +155,12 @@ Our implementation (`src/lib/normalization.ts`) explicitly tests for $\text{MAD}
 ---
 
 ## 📚 Technical Documentation Directory
-
-- 📐 **[ARCHITECTURE.md](docs/for-judges/ARCHITECTURE.md):** Deep-dive into Next.js App Router, offline resilience, RBAC parameter guards, and PostgreSQL migration guide.
-- 🗄️ **[DATA-MODEL.md](docs/for-judges/DATA-MODEL.md):** Detailed breakdown of all 13 Prisma models (including `CommunityVote` and `Comment`), Mermaid ER diagrams, fixture import mapping, and CSV/JSON export pathways.
-- 📊 **[JUDGING.md](docs/for-judges/JUDGING.md):** Judge assignment strategy (incomplete block design), scoring mathematics, Modified Z-Score (MAD) normalization, zero-variance defense, and RFC 4180 CSV export specifications.
-- 🛡️ **[COMMUNITY_INTEGRITY.md](docs/for-judges/COMMUNITY_INTEGRITY.md):** Complete T3 integrity specification — Sybil resistance, duplicate prevention, self-vote blocks, presentation bias mitigation, and the sealed-results threat model.
-- 📄 **[acceptance-report.txt](docs/for-judges/acceptance-report.txt):** Raw terminal output of the 7/7 passing acceptance test run (tier by tier).
-- ⚖️ **[LICENSE](LICENSE):** Standard MIT License.
+ 
+- 📐 **[ARCHITECTURE.md](./ARCHITECTURE.md):** Deep-dive into Next.js App Router, offline resilience, RBAC parameter guards, and PostgreSQL migration guide.
+- 🗄️ **[DATA-MODEL.md](./DATA-MODEL.md):** Detailed breakdown of all 13 Prisma models (including `CommunityVote` and `Comment`), Mermaid ER diagrams, fixture import mapping, and CSV/JSON export pathways.
+- 📊 **[JUDGING.md](./JUDGING.md):** Judge assignment strategy (incomplete block design), scoring mathematics, Modified Z-Score (MAD) normalization, zero-variance defense, and RFC 4180 CSV export specifications.
+- 🛡️ **[COMMUNITY_INTEGRITY.md](./COMMUNITY_INTEGRITY.md):** Complete T3 integrity specification — Sybil resistance, duplicate prevention, self-vote blocks, presentation bias mitigation, and the sealed-results threat model.
+- 🔒 **[THREAT-MODEL.md](./THREAT-MODEL.md):** System trust boundaries, attacker profiles, threat taxonomy (V/J/C/A/D matrices), and security invariant summary.
+- 🔌 **[API.md](./API.md):** Complete REST API specification with endpoints, request/response contracts, and error handling for API-first integration.
+- 📄 **[acceptance-report.txt](./acceptance-report.txt):** Raw terminal output of the 7/7 passing acceptance test run (tier by tier).
+- ⚖️ **[LICENSE](./LICENSE):** Standard MIT License.
