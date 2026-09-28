@@ -4,142 +4,196 @@
 
 ---
 
-## 1. Entity-Relationship Diagram (Mermaid ERD)
+## 1. Relational Architecture & Entity-Relationship Model
+
+To make the database design immediately intuitive for evaluating judges, OmniJudge's 14 Prisma models are organized into **4 decoupled functional domains**:
+
+```
+ ┌──────────────────────────────────────────────────────────────────────────────┐
+ │                       OMNIJUDGE DOMAIN CLUSTERS                              │
+ └──────────────────────────────────────────────────────────────────────────────┘
+          │                                              │
+          ▼                                              ▼
+ ┌───────────────────────────┐                  ┌───────────────────────────┐
+ │ 1. Identity & Teams       │                  │ 2. Event & Projects       │
+ │ • User (Roles & Auth)     │                  │ • Event (Deadlines/State) │
+ │ • Session (HTTP Cookies)  │                  │ • Track (Category Scopes) │
+ │ • Team & TeamMember       │                  │ • Project (Submissions)   │
+ └─────────────┬─────────────┘                  └─────────────┬─────────────┘
+               │                                              │
+               ├──────────────────────┬───────────────────────┤
+               │                      │                       │
+               ▼                      ▼                       ▼
+ ┌───────────────────────────┐ ┌───────────────────────────┐ ┌───────────────────────────┐
+ │ 3. Judging Engine (T2)    │ │ 4. Community Track (T3)   │ │ 5. Extensibility (T4)     │
+ │ • JudgeAssignment (Tracks)│ │ • CommunityVote (Upvotes) │ │ • WebhookSubscription    │
+ │ • RubricCriterion (Weights│ │ • Comment (Feedback)      │ │   (HMAC Event Stream)   │
+ │ • Score (Atomic Reviews)  │ │ • AuditLog (Forensics)    │ │                           │
+ └───────────────────────────┘ └───────────────────────────┘ └───────────────────────────┘
+```
+
+---
+
+### 1.1 Complete Entity-Relationship Diagram (Mermaid ERD)
 
 ```mermaid
 erDiagram
-    User ||--o{ Session : "authenticates via"
-    User ||--o| TeamMember : "belongs to"
-    User ||--o{ JudgeAssignment : "assigned to"
-    User ||--o{ Score : "submits"
-    User ||--o{ AuditLog : "triggers"
-    User ||--o{ CommunityVote : "casts"
-    User ||--o{ Comment : "posts"
+    %% ----------------------------------------------------
+    %% CLUSTER 1: IDENTITY, SESSIONS & TEAM FORMATION
+    %% ----------------------------------------------------
+    User ||--o{ Session : "authenticates via (1:N)"
+    User ||--o| TeamMember : "belongs to (1:1)"
+    Team ||--|{ TeamMember : "comprises (1:N)"
+    User ||--o{ AuditLog : "generates forensic log (1:N)"
 
-    Team ||--|{ TeamMember : "contains"
-    Team ||--o{ Project : "submits"
+    %% ----------------------------------------------------
+    %% CLUSTER 2: EVENT HIERARCHY & PROJECT SUBMISSIONS
+    %% ----------------------------------------------------
+    Event ||--|{ Track : "partitions into (1:N)"
+    Event ||--o{ Project : "hosts (1:N)"
+    Track ||--o{ Project : "classifies (1:N)"
+    Team ||--o{ Project : "submits (1:N)"
 
-    Event ||--|{ Track : "categorized by"
-    Event ||--o{ Project : "belongs to"
+    %% ----------------------------------------------------
+    %% CLUSTER 3: TIER 2 JUDGING & SCORING PIPELINE
+    %% ----------------------------------------------------
+    User ||--o{ JudgeAssignment : "assigned to evaluate (1:N)"
+    Track ||--o{ JudgeAssignment : "scoped by (1:N)"
+    User ||--o{ Score : "submits rubric score (1:N)"
+    Project ||--o{ Score : "evaluated by (1:N)"
+    RubricCriterion ||--o{ Score : "weighed against (1:N)"
 
-    Track ||--o{ Project : "assigns"
-    Track ||--o{ JudgeAssignment : "evaluates"
+    %% ----------------------------------------------------
+    %% CLUSTER 4: TIER 3 COMMUNITY ENGAGEMENT & FEEDBACK
+    %% ----------------------------------------------------
+    User ||--o{ CommunityVote : "casts upvote (1:N)"
+    Project ||--o{ CommunityVote : "receives upvote (1:N)"
+    User ||--o{ Comment : "authors feedback (1:N)"
+    Project ||--o{ Comment : "receives comment (1:N)"
 
-    Project ||--o{ Score : "evaluated in"
-    Project ||--o{ CommunityVote : "receives"
-    Project ||--o{ Comment : "has"
-    RubricCriterion ||--o{ Score : "scored against"
-
-    WebhookSubscription {
-        string id PK "cuid()"
-        string url
-        string secret "HMAC secret"
-        string events "score.submitted,vote.cast,results.unsealed"
-        boolean isActive "default true"
-        datetime createdAt
-    }
-
+    %% ----------------------------------------------------
+    %% ENTITY DEFINITIONS & CORE ATTRIBUTES
+    %% ----------------------------------------------------
     User {
         string id PK "cuid()"
-        string email UK
-        string name
+        string email UK "RFC 5322"
+        string name "Full Name"
         string role "visitor|participant|judge|organizer|admin"
         datetime createdAt
     }
 
     Session {
-        string id PK "token or UUID"
-        string userId FK
-        datetime createdAt
-        datetime expiresAt
+        string id PK "Deterministic token or UUID"
+        string userId FK "-> User.id"
+        datetime expiresAt "30-day forward expiry"
     }
 
     Event {
-        string id PK
-        string name
-        datetime submissionsClose
-        boolean votingOpen "default false"
-        boolean resultsPublic "default false"
-        datetime createdAt
+        string id PK "evt_..."
+        string name "Event Title"
+        datetime submissionsClose "Hard cutoff"
+        boolean votingOpen "T3 Community toggle"
+        boolean resultsPublic "T3 Sealed results toggle"
     }
 
     Track {
-        string id PK
-        string name
-        string eventId FK
+        string id PK "trk_..."
+        string name "Track Title"
+        string eventId FK "-> Event.id"
     }
 
     Team {
-        string id PK
-        string name
+        string id PK "tm_..."
+        string name "Team Name"
     }
 
     TeamMember {
         string id PK "cuid()"
-        string userId FK "Unique 1-1"
-        string teamId FK
+        string userId FK "-> User.id (Unique 1-1)"
+        string teamId FK "-> Team.id"
     }
 
     Project {
-        string id PK
-        string teamId FK
-        string trackId FK
-        string eventId FK
-        string title
-        string summary
-        string repoUrl
-        datetime submittedAt
-        boolean isDraft
+        string id PK "prj_..."
+        string teamId FK "-> Team.id"
+        string trackId FK "-> Track.id"
+        string eventId FK "-> Event.id"
+        string title "Project Title"
+        string summary "Pitch summary"
+        string repoUrl "Repository link"
+        datetime submittedAt "Submission timestamp"
+        boolean isDraft "Draft flag"
     }
 
     RubricCriterion {
         string id PK "cuid()"
-        string name
-        float weight "Default 1.0"
-        int maxScore "Default 5"
+        string name "e.g. Functionality, Quality"
+        float weight "Rubric multiplier (default 1.0)"
+        int maxScore "Scale ceiling (default 5)"
     }
 
     JudgeAssignment {
         string id PK "cuid()"
-        string userId FK
-        string trackId FK
+        string userId FK "-> User.id (Judge)"
+        string trackId FK "-> Track.id (Assigned track)"
     }
 
     Score {
         string id PK "cuid()"
-        string judgeId FK
-        string projectId FK
-        string criterionId FK
-        float value "0.0 - 5.0"
-        string comment
-        datetime submittedAt
+        string judgeId FK "-> User.id"
+        string projectId FK "-> Project.id"
+        string criterionId FK "-> RubricCriterion.id"
+        float value "Raw rubric score (0.0 - 5.0)"
+        string comment "Qualitative judge feedback"
+        datetime submittedAt "ACID timestamp"
     }
 
     CommunityVote {
         string id PK "cuid()"
-        string projectId FK
-        string userId FK
+        string projectId FK "-> Project.id"
+        string userId FK "-> User.id"
         datetime createdAt
     }
 
     Comment {
         string id PK "cuid()"
-        string projectId FK
-        string userId FK
-        string authorName
-        string content "max 500 chars, HTML-stripped"
+        string projectId FK "-> Project.id"
+        string userId FK "-> User.id"
+        string authorName "Sanitized author"
+        string content "HTML-stripped (max 500 chars)"
+        boolean isFlagged "Moderation flag"
         datetime createdAt
-        boolean isFlagged "default false"
     }
 
     AuditLog {
         string id PK "cuid()"
-        string userId FK
-        string action
-        string payload "JSON string"
+        string userId FK "-> User.id"
+        string action "e.g. score_submitted, vote_cast"
+        string payload "JSON audit delta"
+        datetime createdAt
+    }
+
+    WebhookSubscription {
+        string id PK "cuid()"
+        string url "Target HTTP endpoint"
+        string secret "HMAC-SHA256 secret"
+        string events "score.submitted,vote.cast,..."
+        boolean isActive "Active toggle"
         datetime createdAt
     }
 ```
+
+---
+
+### 1.2 Domain Cluster & Relational Summary
+
+| Cluster | Models | Key Relational Guarantees & Constraints |
+| :--- | :--- | :--- |
+| **1. Identity & Auth** | `User`, `Session`, `Team`, `TeamMember` | `TeamMember.userId` is `@unique` (enforces strict 1-user-per-team rule, enabling relational Conflict of Interest and self-vote defense). |
+| **2. Event & Submissions** | `Event`, `Track`, `Project` | Hierarchical foreign keys bind projects to exact event and track instances; submission deadlines checked before insert. |
+| **3. Tier 2 Judging** | `JudgeAssignment`, `RubricCriterion`, `Score` | Judges can only score projects within assigned tracks (`JudgeAssignment`); rubric scores are weighted by `RubricCriterion.weight`. |
+| **4. Tier 3 Community** | `CommunityVote`, `Comment`, `AuditLog` | `CommunityVote` enforces `@@unique([projectId, userId])` to prevent double-voting; `Comment` enforces HTML sanitization & rate limits; `AuditLog` is append-only. |
+| **5. Tier 4 Extensibility** | `WebhookSubscription` | Standalone integration model storing subscribed HTTP endpoints and pre-shared HMAC-SHA256 signing secrets. |
 
 ---
 
