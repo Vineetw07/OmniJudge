@@ -302,7 +302,7 @@ export function JudgePortalClient({
 
   return (
     <div className="min-h-screen text-slate-100 flex flex-col">
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 w-full space-y-6">
+      <main className="max-w-[1560px] mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 w-full space-y-6">
         {/* Banner / Track Info */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 p-6 rounded-2xl backdrop-blur-md bg-white/[0.03] border border-white/[0.08] shadow-[0_8px_32px_rgba(0,0,0,0.4)]">
           <div className="space-y-2">

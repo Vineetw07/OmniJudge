@@ -46,7 +46,7 @@ export function Navbar({ currentUser }: NavbarProps) {
 
   return (
     <header className="sticky top-0 z-50 backdrop-blur-md bg-white/[0.04] border-b border-white/[0.06] transition-colors">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div className="max-w-[1560px] mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
         {/* Left: Brand & Monospace Badge */}
         <div className="flex items-center gap-3">
           <Link href="/" className="flex items-center gap-2 group">

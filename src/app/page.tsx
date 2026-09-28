@@ -34,7 +34,7 @@ export default async function HomePage() {
     <div className="flex flex-col min-h-screen">
       {/* Hero Section */}
       <section className="relative overflow-hidden pt-12 pb-16 md:pt-20 md:pb-24">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
           {/* Top Pill Badge */}
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-cyan-500/30 bg-cyan-500/10 text-cyan-300 text-xs font-mono uppercase tracking-wider mb-6 shadow-[0_0_20px_rgba(56,189,248,0.15)] animate-in fade-in-0 duration-500">
             <Sparkles className="size-3.5 text-cyan-400" />
@@ -80,7 +80,7 @@ export default async function HomePage() {
           </div>
 
           {/* Elevated Developer Command Console (Inspired by Reference Prompt Terminal) */}
-          <div className="max-w-3xl mx-auto rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl p-5 sm:p-6 shadow-[0_16px_48px_rgba(0,0,0,0.6)] text-left space-y-4 hover:border-cyan-500/30 transition-all duration-300">
+          <div className="max-w-4xl mx-auto rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-xl p-5 sm:p-6 shadow-[0_16px_48px_rgba(0,0,0,0.6)] text-left space-y-4 hover:border-cyan-500/30 transition-all duration-300">
             {/* Terminal Header Bar */}
             <div className="flex items-center justify-between border-b border-white/10 pb-3">
               <div className="flex items-center gap-2">
@@ -157,7 +157,7 @@ export default async function HomePage() {
 
       {/* Feature Architecture Bento Grid */}
       <section className="py-12 md:py-16 border-t border-white/5 bg-white/[0.01]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-[1560px] mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-2xl mx-auto mb-12">
             <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-white mb-3">
               Platform Architecture &amp; Core Invariants
@@ -225,7 +225,7 @@ export default async function HomePage() {
 
       {/* Role Guide Section */}
       <section className="py-12 md:py-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-[1560px] mx-auto px-4 sm:px-6 lg:px-8">
           <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-8 md:p-10 backdrop-blur-md">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               {/* Role 1: Organizer */}
@@ -279,7 +279,7 @@ export default async function HomePage() {
 
       {/* Footer */}
       <footer className="mt-auto border-t border-white/5 py-8 text-center text-xs text-slate-500">
-        <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="max-w-[1560px] mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
           <p>© 2026 DOGFOOD Hackathon Portal. MIT License.</p>
           <div className="flex items-center gap-6">
             <Link href="/projects" className="hover:text-slate-300 transition-colors">

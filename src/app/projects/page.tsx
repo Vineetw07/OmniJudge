@@ -20,7 +20,7 @@ export default async function ProjectsPage() {
   });
 
   return (
-    <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 w-full">
+    <main className="max-w-[1560px] mx-auto px-4 sm:px-6 lg:px-8 py-10 w-full">
       {/* Hero Banner with glowing pill badge */}
       <div className="text-center md:text-left mb-10">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-cyan-500/30 bg-cyan-500/10 text-cyan-300 text-xs font-medium tracking-wide mb-4 shadow-[0_0_15px_rgba(56,189,248,0.2)]">
