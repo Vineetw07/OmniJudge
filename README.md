@@ -156,9 +156,9 @@ Our implementation (`src/lib/normalization.ts`) explicitly tests for $\text{MAD}
 
 ## 📚 Technical Documentation Directory
 
-- 📐 **[ARCHITECTURE.md](ARCHITECTURE.md):** Deep-dive into Next.js App Router, offline resilience, RBAC parameter guards, and PostgreSQL migration guide.
-- 🗄️ **[DATA-MODEL.md](DATA-MODEL.md):** Detailed breakdown of all 13 Prisma models (including `CommunityVote` and `Comment`), Mermaid ER diagrams, fixture import mapping, and CSV/JSON export pathways.
-- 📊 **[JUDGING.md](JUDGING.md):** Judge assignment strategy (incomplete block design), scoring mathematics, Modified Z-Score (MAD) normalization, zero-variance defense, and RFC 4180 CSV export specifications.
-- 🛡️ **[COMMUNITY_INTEGRITY.md](COMMUNITY_INTEGRITY.md):** Complete T3 integrity specification — Sybil resistance, duplicate prevention, self-vote blocks, presentation bias mitigation, and the sealed-results threat model.
-- 📄 **[acceptance-report.txt](acceptance-report.txt):** Raw terminal output of the 7/7 passing acceptance test run (tier by tier).
+- 📐 **[ARCHITECTURE.md](docs/for-judges/ARCHITECTURE.md):** Deep-dive into Next.js App Router, offline resilience, RBAC parameter guards, and PostgreSQL migration guide.
+- 🗄️ **[DATA-MODEL.md](docs/for-judges/DATA-MODEL.md):** Detailed breakdown of all 13 Prisma models (including `CommunityVote` and `Comment`), Mermaid ER diagrams, fixture import mapping, and CSV/JSON export pathways.
+- 📊 **[JUDGING.md](docs/for-judges/JUDGING.md):** Judge assignment strategy (incomplete block design), scoring mathematics, Modified Z-Score (MAD) normalization, zero-variance defense, and RFC 4180 CSV export specifications.
+- 🛡️ **[COMMUNITY_INTEGRITY.md](docs/for-judges/COMMUNITY_INTEGRITY.md):** Complete T3 integrity specification — Sybil resistance, duplicate prevention, self-vote blocks, presentation bias mitigation, and the sealed-results threat model.
+- 📄 **[acceptance-report.txt](docs/for-judges/acceptance-report.txt):** Raw terminal output of the 7/7 passing acceptance test run (tier by tier).
 - ⚖️ **[LICENSE](LICENSE):** Standard MIT License.
