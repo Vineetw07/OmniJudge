@@ -154,6 +154,7 @@ participant  Cookie: session=prt_seed_token_2026
 | 2026-09-28T15:56:00+05:30 | Gemini | Sr Tech Writer + QA | Phase 4 complete: verified acceptance checker (7/7 PASS), generated acceptance-report.txt, wrote README.md, ARCHITECTURE.md, DATA-MODEL.md, JUDGING.md, verified LICENSE, updated login role redirection, typecheck + lint 0 errors | All 7/7 PASS, Docs Complete |
 | 2026-09-28T16:50:00+05:30 | Gemini | Worker M6 | Phase 5 UI Polish & Freeze Rehearsal: verified Triad (typecheck 0 errors, lint 0 errors, build success), verified acceptance checker (7/7 PASS), verified raw SSR HTML titles and CSV export | All 7/7 PASS green, Triad Clean |
 | 2026-09-28T17:20:00+05:30 | Gemini | Senior UI/UX Eng | Resolved root hero page (Midnight Obsidian hero & quick-access terminal), enforced strict role separation on /judge for organizers, added active session pill and logout endpoint | All 7/7 PASS green, Triad Clean |
+| 2026-09-28T17:30:00+05:30 | Gemini | Senior UI/UX Eng | Expanded widescreen container ratio across all views from max-w-7xl (1280px) to max-w-[1560px] (~81% ratio) | All 7/7 PASS green, Triad Clean |
 
 ---
 
