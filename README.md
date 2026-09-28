@@ -5,9 +5,8 @@
 
 ---
 
-## 🏆 What Makes OmniJudge Different (Why It Wins)
+## 🏆 What Makes OmniJudge Different
 
-Most teams stop at basic CRUD for T1 and T2. OmniJudge was over-engineered specifically for the brutal realities of hackathon evaluation:
 1. **Mathematical Defensibility (MAD):** We don't just average scores. We implemented Modified Z-Score Normalization via Median Absolute Deviation (MAD), proving its 0.6745 derivation and defending against zero-variance judge edge-cases (`jdg_30`, `jdg_07`) that crash naive systems.
 2. **Zero-Trust Security Perimeter:** Role isolation isn't just UI conditional rendering. Every route handler enforces parameter-level perimeter checks, stopping peer-snooping (IDOR) and collusive self-voting (`TeamMember` relational checks) before database queries ever execute.
 3. **Tier 4 Stretch Surface Completed:** Beyond T1/T2, OmniJudge delivers cryptographically signed HMAC-SHA256 judge certificates, non-blocking asynchronous webhooks, an embeddable iframe gallery, bulk import/export, and a full OpenAPI 3.1.0 interactive explorer.
