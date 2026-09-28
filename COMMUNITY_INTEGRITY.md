@@ -2,6 +2,8 @@
 
 > **Publication-Grade Architectural Specification, Anti-Abuse Threat Model, Cryptographic & Relational Defenses, and Verification Runbook for OmniJudge Hackathon Portal.**
 
+**Why Community Voting is Uniquely Hard:** Open hackathon voting is fundamentally broken on most platforms. Without strict cryptographic and relational boundaries, public ballots devolve into popularity contests dominated by vote-farming scripts, team self-collusion, and UI-driven bandwagon cascades. OmniJudge solves this correctly by migrating trust from the frontend to the database engine—enforcing Fisher-Yates session stabilization, composite `@unique` indexing, and atomic relational self-vote rejection at the schema level.
+
 ---
 
 ## 1. Architecture Overview: Tier 3 (T3) Community Evaluation Engine

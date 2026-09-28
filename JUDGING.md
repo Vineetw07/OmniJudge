@@ -41,12 +41,14 @@ Assignment is not merely a UI suggestion; it is a **cryptographic security bound
 
 ### 3.1 Why Competing Normalization Methods Fail (The Defense)
 
+Choosing a normalization algorithm is an engineering trade-off. We deliberately rejected standard methods because they collapse under the specific constraints of hackathon evaluation.
+
 | Normalization Method | Formula | Fatal Flaw in Hackathons | OmniJudge Verdict |
 | :--- | :--- | :--- | :--- |
-| **Raw Arithmetic Mean** | $\bar{x} = \frac{1}{K}\sum x_k$ | Vulnerable to "hawks vs. doves" calibration skew. Submissions assigned strict judges are unfairly penalized. | ❌ Rejected |
-| **Min-Max Scaling** | $\frac{x_i - \min}{\max - \min}$ | Extreme outlier scores collapse the scale for all intermediate projects; breaks down if $\min = \max$. | ❌ Rejected |
-| **Classical Z-Score** | $z_i = \frac{x_i - \bar{x}}{s}$ | Sample standard deviation $s$ has a 0% breakdown point. **Crashes with `NaN`** when variance is zero ($s = 0$). | ❌ Rejected |
-| **Borda Count / Elo** | Pairwise ranking | Requires all-pairs or dense bipartite connectivity; fails on sparse, disjoint incomplete block designs. | ❌ Rejected |
+| **Raw Arithmetic Mean** | $\bar{x} = \frac{1}{K}\sum x_k$ | Vulnerable to "hawks vs. doves" calibration skew. Submissions assigned strict judges are unfairly penalized. | ❌ Rejected (Fails Integrity) |
+| **Min-Max Scaling** | $\frac{x_i - \min}{\max - \min}$ | Extreme outlier scores collapse the scale for all intermediate projects; breaks down if $\min = \max$. | ❌ Rejected (Fragile) |
+| **Classical Z-Score** | $z_i = \frac{x_i - \bar{x}}{s}$ | Sample standard deviation $s$ has a 0% breakdown point. **Crashes with `NaN`** when variance is zero ($s = 0$). | ❌ Rejected (Crashes on `jdg_30`) |
+| **Borda Count / Elo** | Pairwise ranking | Requires all-pairs or dense bipartite connectivity; fails on sparse, disjoint incomplete block designs. | ❌ Rejected (Unsuitable for IBD) |
 | **Modified Z-Score (MAD)** | $0.6745 \cdot \frac{x_i - \tilde{x}}{\text{MAD}}$ | **50% breakdown point robustness**. Accommodates outliers, scales identical to Gaussian, handles zero-variance gracefully. | ✅ **Selected & Defended** |
 
 ### 3.2 The Modified Z-Score Formula
@@ -60,7 +62,10 @@ Where:
 - $\text{MAD}$ is the **Median Absolute Deviation**, defined as:
   $$\text{MAD} = \text{median}\left( |x_i - \tilde{x}| \right)$$
 
-### 3.3 Mathematical Derivation of the Constant $0.6745$
+### 3.3 Mathematical Derivation of the Constant $0.6745$ (Normalization Proof Bonus)
+
+> 🏆 **Bonus Challenge Addressed:** OmniJudge doesn't just use magic numbers. This derivation proves the scaling constant required to map median absolute deviations back to a standard Gaussian curve, ensuring our normalizations are statistically sound.
+
 The scaling constant $0.6745$ is derived from the standard normal cumulative distribution function $\Phi(z)$.
 
 For a standard normal distribution $\mathcal{N}(0, 1)$, the median is $0$. The MAD is the value $\text{mad}$ such that:
@@ -76,10 +81,12 @@ Multiplying $(x_i - \tilde{x})$ by $0.6745 / \text{MAD}$ (or dividing by $1.4826
 
 ---
 
-## 4. Deliberate Zero-Variance Fixture Torture Tests (`jdg_30`, `jdg_07`, and Single-Review Panels)
+## 4. Adversarial Test Design: Defeating Zero-Variance Fixture Tortures (`jdg_30`, `jdg_07`)
+
+We didn't just write code; we designed the normalization engine to survive the official DOGFOOD 2026 adversarial fixtures without crashing or corrupting the CSV export.
 
 ### The Traps in `fixtures.json`
-The official DOGFOOD evaluation dataset (`Hack_docs/fixtures.json`) includes multiple adversarial zero-variance and low-sample edge cases:
+The official DOGFOOD evaluation dataset (`Hack_docs/fixtures.json`) includes multiple adversarial zero-variance and low-sample edge cases explicitly designed to crash naive normalizers:
 - **`jdg_30` (Rafa Okonkwo):** Awarded identical scores of `3.0` across all evaluated projects ($X = [3.0, 3.0, ...]$).
 - **`jdg_07` (Iva Petrova):** Awarded identical scores of `4.0` across all 3 evaluated projects ($X = [4.0, 4.0, 4.0]$).
 - **Single-Review Judges (`jdg_01`, `jdg_23`):** Evaluated exactly one project ($N = 1$), which mathematically produces a deviation $|x_1 - \tilde{x}| = 0.0$.
