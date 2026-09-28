@@ -44,3 +44,9 @@ prisma/*.db-shm
 *.db-journal
 *.db-wal
 *.db-shm
+
+# AI agent workspace — internal, not part of submission
+.agents/
+
+# Internal development docs — not for judges
+docs/internal/
