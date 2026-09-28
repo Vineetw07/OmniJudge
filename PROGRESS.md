@@ -5,10 +5,10 @@
 
 ---
 
-Last updated: 2026-09-28T18:26:00+05:30
-Current phase: Phase 6 - M2 completed -> Ready for M3
-Last completed task: Phase 6 M2: Anti-Abuse Protected APIs (POST /api/community/vote, GET /api/community/vote, /api/community/comments, /api/community/settings)
-Next task: Phase 6 M3: Ballot Randomization & Voting UX (/projects & ProjectsClient)
+Last updated: 2026-09-28T18:42:00+05:30
+Current phase: Phase 6 - M3 & M4 completed -> Ready for M5
+Last completed task: Phase 6 M3 & M4: Ballot Randomization & Voting UX, Project Comments & Feedback Drawer
+Next task: Phase 6 M5: Organizer Governance in Dashboard (/dashboard)
 Known blockers: Docker not yet tested end-to-end (docker CLI not in PATH at time of Phase 1 — may need PATH fix or Docker Desktop CLI plugin install)
 Checker state: T1 PASS, T2 PASS (7/7 PASS verified green)
 Docker state: Dockerfile + docker-compose.yml written, entrypoint tested and verified
@@ -109,8 +109,8 @@ Select-String -Path "d:\TP\Hackathon\DogFood\src\*" -Pattern "RESUME_HERE|TODO|F
 ### Phase 6 — T3 Community Voting & Anti-Abuse Integrity (Full-Stack Product Engineer)
 - [x] M1: Data Model & Schema Migration (`prisma/schema.prisma`): `CommunityVote`, `Comment`, and `Event` (`votingOpen`, `resultsPublic`), `db push` applied safely, `src/lib/seed.ts` updated with `TeamMember` mapping for `user_prt_01` (tm_01), seed idempotency verified, 7/7 baseline preserved
 - [x] M2: Anti-Abuse Protected APIs (`/api/community/vote`, `/api/community/comments`, `/api/community/settings`): session auth, self-vote block, sealed results redaction, rate limiting, and audit logging
-- [ ] M3: Ballot Randomization & Voting UX (`/projects` & ProjectsClient): Fisher-Yates per-session order, glass upvote button, luminous emerald glow, sealed results shield badge
-- [ ] M4: Project Feedback & Comment Stream: collapsible obsidian drawer, role badges, sanitized comments
+- [x] M3: Ballot Randomization & Voting UX (`/projects` & ProjectsClient): Fisher-Yates per-session order, glass upvote button, luminous emerald glow, sealed results shield badge
+- [x] M4: Project Feedback & Comment Stream: collapsible obsidian drawer, role badges, sanitized comments
 - [ ] M5: Organizer Governance in Dashboard (`/dashboard`): community voting control card, stats, seal/unseal toggle, audit trail filtering
 - [ ] M6: Specification Docs & Full Integrity Sign-off (`COMMUNITY_INTEGRITY.md`): threat model, anti-bias analysis, sybil resistance, full verification triad
 
@@ -138,6 +138,7 @@ participant  Cookie: session=prt_seed_token_2026
 | 2026-09-28T16:50:00+05:30 | PASS | PASS | PASS | PASS | PASS | PASS | PASS | T1 PASS, T2 PASS (7/7) |
 | 2026-09-28T18:14:00+05:30 | PASS | PASS | PASS | PASS | PASS | PASS | PASS | T1 PASS, T2 PASS (7/7) |
 | 2026-09-28T18:25:00+05:30 | PASS | PASS | PASS | PASS | PASS | PASS | PASS | T1 PASS, T2 PASS (7/7) |
+| 2026-09-28T18:42:00+05:30 | PASS | PASS | PASS | PASS | PASS | PASS | PASS | T1 PASS, T2 PASS (7/7) |
 
 ---
 
@@ -164,6 +165,7 @@ participant  Cookie: session=prt_seed_token_2026
 | 2026-09-28T17:30:00+05:30 | Gemini | Senior UI/UX Eng | Expanded widescreen container ratio across all views from max-w-7xl (1280px) to max-w-[1560px] (~81% ratio) | All 7/7 PASS green, Triad Clean |
 | 2026-09-28T18:15:00+05:30 | Gemini | Worker P6-M1 | Phase 6 M1 complete: DB backup, CommunityVote + Comment + Event lifecycle flags schema migration, seed.ts updated with user_prt_01 team link, typecheck 0 errors, lint 0 errors, 7/7 checker PASS | M1 Complete, Ready for M2 |
 | 2026-09-28T18:26:00+05:30 | Gemini | Worker P6-M2 | Phase 6 M2 complete: Anti-abuse APIs (/api/community/vote, /api/community/comments, /api/community/settings), self-vote block, sealed results, 10s rate limit, AuditLog trail, 38/38 integration tests PASS, 7/7 checker PASS | M2 Complete, Ready for M3 |
+| 2026-09-28T18:42:00+05:30 | Gemini | Worker P6-M3-M4 | Phase 6 M3+M4 complete: Fisher-Yates per-session ballot randomization, glass voting controls with emerald glow, sealed results shield badge, Midnight Obsidian ProjectCommentsDrawer with role badges, 6/6 integration tests PASS, 7/7 checker PASS | M3+M4 Complete, Ready for M5 |
 
 ---
 

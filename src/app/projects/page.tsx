@@ -1,5 +1,6 @@
 import { Metadata } from 'next';
 import { prisma } from '@/lib/prisma';
+import { getServerSession } from '@/lib/auth';
 import { ProjectsClient } from './projects-client';
 
 export const dynamic = 'force-dynamic';
@@ -10,14 +11,61 @@ export const metadata: Metadata = {
 };
 
 export default async function ProjectsPage() {
-  const projects = await prisma.project.findMany({
-    take: 40,
-    orderBy: { id: 'asc' },
-    include: {
-      team: true,
-      track: true,
-    },
+  const [projects, session, event] = await Promise.all([
+    prisma.project.findMany({
+      take: 40,
+      orderBy: { id: 'asc' },
+      include: {
+        team: true,
+        track: true,
+      },
+    }),
+    getServerSession(),
+    prisma.event.findFirst({
+      select: {
+        votingOpen: true,
+        resultsPublic: true,
+      },
+    }),
+  ]);
+
+  const votingOpen = event?.votingOpen ?? true;
+  const resultsPublic = event?.resultsPublic ?? false;
+  const isOrganizerOrAdmin = session?.role === 'organizer' || session?.role === 'admin';
+
+  // Get user's voted project IDs if authenticated
+  let userVotedIds: string[] = [];
+  if (session) {
+    const votes = await prisma.communityVote.findMany({
+      where: { userId: session.id },
+      select: { projectId: true },
+    });
+    userVotedIds = votes.map((v) => v.projectId);
+  }
+
+  // Get comment counts per project (unflagged comments)
+  const commentCountsRaw = await prisma.comment.groupBy({
+    by: ['projectId'],
+    where: { isFlagged: false },
+    _count: { id: true },
   });
+  const commentCounts: Record<string, number> = {};
+  for (const c of commentCountsRaw) {
+    commentCounts[c.projectId] = c._count.id;
+  }
+
+  // If resultsPublic or organizer/admin, get vote counts per project
+  let voteCounts: Record<string, number> | null = null;
+  if (resultsPublic || isOrganizerOrAdmin) {
+    const voteCountsRaw = await prisma.communityVote.groupBy({
+      by: ['projectId'],
+      _count: { id: true },
+    });
+    voteCounts = {};
+    for (const v of voteCountsRaw) {
+      voteCounts[v.projectId] = v._count.id;
+    }
+  }
 
   return (
     <main className="max-w-[1560px] mx-auto px-4 sm:px-6 lg:px-8 py-10 w-full">
@@ -34,8 +82,19 @@ export default async function ProjectsPage() {
         </p>
       </div>
 
-      {/* Client island for search, track filtering and glass cards */}
-      <ProjectsClient initialProjects={projects} />
+      {/* Client island for search, track filtering, randomized ballot, voting and comments */}
+      <ProjectsClient
+        initialProjects={projects}
+        initialUserVotedIds={userVotedIds}
+        initialVotingOpen={votingOpen}
+        initialResultsPublic={resultsPublic}
+        initialVoteCounts={voteCounts}
+        initialCommentCounts={commentCounts}
+        isOrganizerOrAdmin={isOrganizerOrAdmin}
+        currentUserId={session?.id ?? null}
+        currentUserRole={session?.role ?? null}
+      />
     </main>
   );
 }
+
