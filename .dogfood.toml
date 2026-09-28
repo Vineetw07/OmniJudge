@@ -2,7 +2,7 @@
 base_url = "http://localhost:8080"
 
 [tiers]
-claimed = ["T1", "T2"]
+claimed = ["T1", "T2", "T3"]
 bonuses = ["normalization-proof", "threat-model"]
 pitch = """
 OmniJudge is a self-hostable hackathon judging portal with three role-separated views: a public project gallery with community voting, a judge scoring portal with weighted rubric sliders, and an organizer command center with a live leaderboard and CSV export.
