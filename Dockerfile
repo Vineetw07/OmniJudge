@@ -12,6 +12,7 @@ COPY . .
 # Generate Prisma client
 RUN npx prisma generate
 # Build Next.js (produces .next/standalone)
+ENV DOCKER_BUILD=1
 RUN npm run build
 
 # Stage 3: Production runner
