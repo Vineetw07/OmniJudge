@@ -76,34 +76,38 @@ Multiplying $(x_i - \tilde{x})$ by $0.6745 / \text{MAD}$ (or dividing by $1.4826
 
 ---
 
-## 4. Deliberate Zero-Variance Fixture Torture Test (`jdg_30`)
+## 4. Deliberate Zero-Variance Fixture Torture Tests (`jdg_30`, `jdg_07`, and Single-Review Panels)
 
-### The Trap in `fixtures.json`
-The official DOGFOOD evaluation dataset (`Hack_docs/fixtures.json`) includes an adversarial test case:
-- **Judge ID:** `jdg_30`
-- **Judge Name:** Rafa Okonkwo
-- **Behavior:** Awarded identical scores of `3.0` across every evaluated project.
+### The Traps in `fixtures.json`
+The official DOGFOOD evaluation dataset (`Hack_docs/fixtures.json`) includes multiple adversarial zero-variance and low-sample edge cases:
+- **`jdg_30` (Rafa Okonkwo):** Awarded identical scores of `3.0` across all evaluated projects ($X = [3.0, 3.0, ...]$).
+- **`jdg_07` (Iva Petrova):** Awarded identical scores of `4.0` across all 3 evaluated projects ($X = [4.0, 4.0, 4.0]$).
+- **Single-Review Judges (`jdg_01`, `jdg_23`):** Evaluated exactly one project ($N = 1$), which mathematically produces a deviation $|x_1 - \tilde{x}| = 0.0$.
 
 ### Mathematical Outcome
-1. Raw scores: $X = [3.0, 3.0, 3.0, ...]$
-2. Median: $\tilde{x} = 3.0$
-3. Deviations: $|x_i - \tilde{x}| = [0.0, 0.0, 0.0, ...]$
-4. $\text{MAD} = \text{median}([0.0, 0.0, 0.0, ...]) = 0.0$
+1. Raw scores: $X = [c, c, ...]$
+2. Median: $\tilde{x} = c$
+3. Deviations: $|x_i - \tilde{x}| = [0.0, 0.0, ...]$
+4. $\text{MAD} = \text{median}([0.0, 0.0, ...]) = 0.0$
 
 In an unhardened system:
-$$\text{modified\_z}_i = \frac{0.6745 \cdot (3.0 - 3.0)}{0.0} = \frac{0}{0} = \text{NaN}$$
+$$\text{modified\_z}_i = \frac{0.6745 \cdot (c - c)}{0.0} = \frac{0}{0} = \text{NaN}$$
 
-When sorting or serializing to CSV, `NaN` propagates through calculations, resulting in empty leaderboards, corrupt CSV rows, or uncaught server exceptions.
+When sorting or serializing to CSV, `NaN` propagates through calculations, resulting in corrupted leaderboards, unranked projects, or uncaught server exceptions.
 
 ### Our Solution (`src/lib/normalization.ts`)
 ```typescript
-// Zero-variance guard: judge gave every project the same score.
+// Zero-variance guard: judge gave every project the same score or evaluated only 1 project.
 // Return neutral zeros — no signal, no crash.
 if (mad === 0) {
   return scores.map(() => 0);
 }
 
-return scores.map((s) => (0.6745 * (s - median)) / mad);
+// Map each score with finite-number verification
+return scores.map((s) => {
+  const norm = (0.6745 * (s - median)) / mad;
+  return Number.isFinite(norm) ? norm : 0;
+});
 ```
 **Domain Rationale:** A judge who awards identical scores provides **zero discriminating information** between projects. Setting their modified Z-scores to `0.0` reflects neutral baseline performance, contributing $0$ deviation to the projects' normalized composite, completely eliminating `NaN` and divide-by-zero crashes.
 
@@ -127,26 +131,31 @@ The complete aggregation sequence executed in `src/app/api/export.csv/route.ts` 
                 ▼
   [ Stage 3: MAD Normalization ]
     Apply normaliseJudgeScores() per judge
-    Handle MAD == 0 -> 0.0
+    Handle MAD == 0 -> 0.0 (e.g. jdg_30, jdg_07, single-review panels)
                 │
                 ▼
   [ Stage 4: Cross-Judge Aggregation ]
-    Avg Normalized Score = (1 / K) Σ (modified_z_j) for all judges j scoring project
-    Avg Raw Score        = (1 / K) Σ (RawScore_j)
+    Avg Normalized Score = (1 / M) Σ (modified_z_j) for all M valid normalized scores
+    Avg Raw Score        = (1 / K) Σ (RawScore_j) for all K reviews
                 │
                 ▼
   [ Stage 5: Deterministic Ranking ]
-    1. Primary Sort:   Normalized Score DESC
-    2. Secondary Sort: Raw Score DESC
-    3. Tertiary Sort:  Project ID ASC
+    1. Evaluated Status: Evaluated projects (reviewCount > 0) strictly outrank unreviewed
+    2. Primary Sort:     Normalized Score DESC (with ε = 1e-9 tolerance)
+    3. Secondary Sort:   Raw Score DESC (with ε = 1e-9 tolerance)
+    4. Tertiary Sort:    Project ID ASC (lexicographical tie-breaker)
                 │
                 ▼
-  [ Stage 6: RFC 4180 CSV Streaming ]
+  [ Stage 6: RFC 4180 CSV Streaming with CWE-1236 Sanitization ]
 ```
+
+### Deterministic Tie-Breaking & Status Invariants
+- **Reviewed vs. Unreviewed Separation:** Unreviewed projects have `normalized_score = 0.0000`. Without an evaluation status guard, an unreviewed project would incorrectly outrank a legitimately reviewed project that received negative normalized scores from strict judges. OmniJudge strictly partitions evaluated projects (`reviewCount > 0`) ahead of unreviewed projects (`reviewCount === 0`).
+- **IEEE 754 Floating-Point Guard ($\epsilon = 10^{-9}$):** Two normalized scores that differ only by binary floating-point representation noise are treated as equal, deferring to raw score and project ID rather than non-deterministic float jitter.
 
 ---
 
-## 6. CSV Export Specification (RFC 4180 Compliance)
+## 6. CSV Export Specification (RFC 4180 & CWE-1236 Compliance)
 
 The CSV export endpoint at `/api/export.csv` strictly fulfills all acceptance criteria mandated by `.dogfood.toml` and `run.py`.
 
@@ -166,11 +175,19 @@ project_id,project_title,track,raw_score,normalized_score,rank
 | `normalized_score` | `Float` | Fixed 4 decimal places (`.toFixed(4)`) | Mean Modified Z-Score across judges |
 | `rank` | `Integer` | Positive 1-based integer ($1, 2, ...$) | Final rank sorted by `normalized_score DESC` |
 
-### Escaping Rules (RFC 4180)
-If any field contains a comma (`,`), double-quote (`"`), carriage return (`\r`), or newline (`\n`), the field is wrapped in double quotes and existing double quotes are doubled (`""`):
+### Escaping Rules (RFC 4180) & Formula Injection Defense (CWE-1236)
+To protect spreadsheet users (Excel, LibreOffice, Google Sheets) against CSV Formula Injection (CWE-1236), any text field starting with formula command triggers (`=`, `+`, `-`, `@`, `\t`, `\r`) that is not a genuine negative number is prefixed with a single quote (`'`). If any field contains a comma (`,`), double-quote (`"`), carriage return (`\r`), or newline (`\n`), the field is wrapped in double quotes and existing double quotes are doubled (`""`):
+
 ```typescript
 function escapeCsvField(value: string | number): string {
-  const str = String(value);
+  let str = String(value);
+
+  // CSV Formula Injection Defense (CWE-1236):
+  // Neutralize formula triggers while preserving valid negative numbers
+  if (/^[=+\-@\t\r]/.test(str) && isNaN(Number(str))) {
+    str = `'${str}`;
+  }
+
   if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
     return `"${str.replace(/"/g, '""')}"`;
   }

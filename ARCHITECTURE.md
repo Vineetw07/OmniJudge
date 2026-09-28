@@ -140,12 +140,13 @@ if (session.role === 'judge') {
 }
 ```
 
-### Transactional Audit Logging
-When a judge submits rubric scores via `POST /api/judge/scores`, data integrity is protected using an atomic transaction (`prisma.$transaction`):
+### Transactional Audit Logging & Judging RBAC Boundary
+When a judge submits rubric scores via `POST /api/judge/scores`, data integrity and jurisdictional boundaries are strictly enforced:
 1. Rubric payload is validated strictly against Zod schemas.
-2. The judge's track assignment is verified to ensure they have jurisdiction over the project.
-3. Every score is upserted.
-4. An immutable `AuditLog` entry is written with `judgeId`, `projectId`, `action: 'SUBMIT_SCORE'`, and the full JSON score delta.
+2. The judge's track assignment is verified to ensure they have jurisdiction over the project track (`JudgeAssignment`).
+3. **Conflict of Interest (COI) Defense:** The database verifies that the judge is not a member of the project's submitting team (`TeamMember.teamId !== project.teamId`), rejecting collusion attempts with `403 Forbidden`.
+4. Every score is upserted inside an atomic transaction (`prisma.$transaction`).
+5. An immutable `AuditLog` entry is written with `judgeId`, `projectId`, `action: 'score_submitted'`, and the full JSON score delta.
 If any step fails, the entire transaction rolls back, guaranteeing zero orphaned or partial evaluations.
 
 ### Community Voting RBAC Boundary *(Phase 6 — T3)*

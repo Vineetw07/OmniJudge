@@ -78,6 +78,7 @@
 | **J-2** | **Participant accessing judge scores** | Participant GETs `/api/judge/scores` | Role check: only `judge`, `organizer`, `admin` allowed | `403 Forbidden` | ✅ Acceptance checker T2 |
 | **J-3** | **Judge scoring out-of-track project** | Judge POSTs score for project in unassigned track | `JudgeAssignment.findFirst({ userId, trackId })` — 403 if no assignment found | `403 Forbidden` | ✅ |
 | **J-4** | **Unauthenticated score submission** | Anonymous `curl` to `POST /api/judge/scores` | Session validation is first check — no session cookie → reject | `401 Unauthorized` | ✅ |
+| **J-5** | **Judge evaluating own team submission (Conflict of Interest)** | Judge POSTs score for project submitted by their own team | `TeamMember.findFirst({ userId, teamId: project.teamId })` relational check in route handler and `/judge` queue filter | `403 Forbidden` | ✅ Integration tested |
 
 ### 3.3 Comment / Content Threats
 
@@ -88,6 +89,7 @@
 | **C-3** | **Oversized payload DoS** | POST 50KB comment body to exhaust DB | `sanitizedContent.length > 500` check after stripping | `400 Bad Request` | ✅ |
 | **C-4** | **Anonymous comment posting** | Unauthenticated POST to `/api/community/comments` | Session validation first | `401 Unauthorized` | ✅ |
 | **C-5** | **Role impersonation in comments** | Participant claims to be a judge in their comment author badge | Author role resolved server-side from authenticated `session.role` — never from request body | Accurate badge | ✅ |
+| **C-6** | **CSV Formula Injection (CWE-1236)** | Attacker submits project title starting with `=cmd|...`, `@SUM...`, etc. | `escapeCsvField` prefixes formula triggers (`=+\-@\t\r`) with single quote `'` unless numeric | Neutralized cell text | ✅ Unit tested |
 
 ### 3.4 Audit & Traceability Threats
 
@@ -128,6 +130,8 @@ The following threats are real in production multi-tenant deployments but delibe
 | **IDOR Guard** | `GET /api/judge/scores` | A judge querying `?judge=<peer_id>` gets 403 before any DB read |
 | **Sealed Results** | `GET /api/community/vote` | `totalVotes` is `null` on the wire until organizer sets `resultsPublic = true` |
 | **Self-Vote Block** | `POST /api/community/vote` | Relational `TeamMember` check — not a UI toggle |
+| **Judge COI Guard** | `POST /api/judge/scores` | Relational `TeamMember` check blocks judges from evaluating their own team's submissions |
+| **CSV Formula Sanitization** | `GET /api/export.csv` | Prefix formula trigger chars (`=+\-@\t\r`) on non-numeric strings with `'` (CWE-1236 defense) |
 | **Atomic Audit** | All write routes | `AuditLog` entry and state mutation commit together or both roll back |
 | **DB-Level Uniqueness** | `CommunityVote` model | `@@unique([projectId, userId])` — no double votes even under concurrent requests |
 | **XSS Sanitization** | `POST /api/community/comments` | HTML stripped server-side before storage, not client-side |

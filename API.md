@@ -206,6 +206,7 @@ Submits or updates multi-criterion rubric evaluations for an assigned project wi
 ```
 * **Enforcements & Guard Rails:**
   * **Jurisdiction Guard (`403 Forbidden`):** For judges, queries `JudgeAssignment` for `(userId, project.trackId)`. If not assigned to that track, rejects with `403`.
+  * **Conflict of Interest (COI) Guard (`403 Forbidden`):** For judges, queries `TeamMember` for `(userId, project.teamId)`. If the judge is an affiliated member of the team submitting the project, rejects with `403 Forbidden`.
   * **Existence Guard (`404 Not Found`):** Project must exist in database.
   * **Criterion Integrity (`400 Bad Request`):** All `criterionId` values must exist and scores must be within `0 <= value <= 5`.
 * **Atomic Transaction Execution:**
@@ -392,10 +393,14 @@ Cache-Control: no-store, max-age=0
      $$\text{Composite} = \frac{\sum (\text{score}_c \cdot \text{weight}_c)}{\sum \text{weight}_c}$$
   2. Applies Modified Z-Score per judge using Median Absolute Deviation:
      $$\text{modified\_z}_i = \frac{0.6745 \cdot (x_i - \tilde{x})}{\text{MAD}}$$
-  3. **Zero-Variance Guard:** If $\text{MAD} = 0$ (e.g. `jdg_30` Rafa Okonkwo who scored all projects identically), outputs `0.0` instead of crashing with `NaN`.
-  4. Averages normalized and raw scores across all judges per project.
-  5. Deterministic multi-key sort: Normalized Score DESC $\rightarrow$ Raw Score DESC $\rightarrow$ Project ID ASC.
-  6. Emits RFC 4180 escaped CSV with comma-verified header row.
+  3. **Zero-Variance & Finite Guard:** If $\text{MAD} = 0$ (e.g. `jdg_30`, `jdg_07`, or single-review judges), outputs `0.0` instead of crashing with `NaN`. All scores pass `Number.isFinite` validation.
+  4. Averages normalized scores across valid normalized values (`/ normScores.length`) and raw scores across all reviews (`/ reviewCount`).
+  5. **Deterministic Multi-Key Sort:**
+     - **Status Invariant:** Evaluated projects (`reviewCount > 0`) strictly outrank unreviewed projects (`reviewCount === 0`).
+     - **Normalized Score DESC:** Floating-point comparison with epsilon tolerance ($\epsilon = 10^{-9}$).
+     - **Raw Score DESC:** Tie-breaker with epsilon tolerance ($\epsilon = 10^{-9}$).
+     - **Project ID ASC:** Deterministic lexicographical tie-break.
+  6. Emits RFC 4180 and CWE-1236 sanitized CSV (neutralizing `=+\-@\t\r` formula triggers) with comma-verified header row.
 * **Output Format:**
 ```csv
 project_id,project_title,track,raw_score,normalized_score,rank
