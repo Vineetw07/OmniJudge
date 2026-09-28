@@ -184,7 +184,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Check judge track assignment if user is a judge
+  // Check judge track assignment and conflict of interest if user is a judge
   if (session.role === 'judge') {
     const assignment = await prisma.judgeAssignment.findFirst({
       where: {
@@ -197,6 +197,23 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           error: `Forbidden: Judge is not assigned to track '${project.track?.name || project.trackId}'`,
+        },
+        { status: 403 }
+      );
+    }
+
+    // Conflict of Interest (COI) Defense: Bar judges from evaluating their own team's project
+    const isTeamMember = await prisma.teamMember.findFirst({
+      where: {
+        userId: session.id,
+        teamId: project.teamId,
+      },
+    });
+
+    if (isTeamMember) {
+      return NextResponse.json(
+        {
+          error: 'Forbidden: Conflict of interest — judges cannot evaluate their own team project',
         },
         { status: 403 }
       );

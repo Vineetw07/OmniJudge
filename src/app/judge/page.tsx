@@ -91,12 +91,24 @@ export default async function JudgePage() {
     name: a.track.name,
   }));
 
-  let projectsWhere: { trackId?: { in: string[] } } = {};
+  // Check if judge is affiliated with any team (Conflict of Interest prevention)
+  const judgeTeamMember = await prisma.teamMember.findUnique({
+    where: { userId: session.id },
+    select: { teamId: true },
+  });
 
-  // For judges with assigned tracks, filter projects by those tracks
+  // Strict Track Jurisdiction & COI isolation:
+  // If judge has no assigned tracks, they should see 0 projects (never default to all projects)
   const trackIds = assignedTracks.map((t) => t.id);
-  if (trackIds.length > 0) {
-    projectsWhere = { trackId: { in: trackIds } };
+  const projectsWhere: {
+    trackId: { in: string[] };
+    teamId?: { not: string };
+  } = {
+    trackId: { in: trackIds },
+  };
+
+  if (judgeTeamMember?.teamId) {
+    projectsWhere.teamId = { not: judgeTeamMember.teamId };
   }
 
   // 2. Fetch Projects in Scope

@@ -29,6 +29,9 @@
  */
 export function normaliseJudgeScores(scores: number[]): number[] {
   if (scores.length === 0) return [];
+  if (!scores.every((s) => typeof s === 'number' && Number.isFinite(s))) {
+    return scores.map(() => 0);
+  }
 
   const sorted = [...scores].sort((a, b) => a - b);
   const mid = Math.floor(sorted.length / 2);

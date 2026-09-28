@@ -183,13 +183,14 @@ export default async function DashboardPage() {
       scoredProjectIds.add(project.id);
     }
 
+    const normCount = normScoresForProject.length;
     const avgRaw =
       count > 0
         ? rawScoresForProject.reduce((acc, v) => acc + v, 0) / count
         : 0;
     const avgNorm =
-      count > 0
-        ? normScoresForProject.reduce((acc, v) => acc + v, 0) / count
+      normCount > 0
+        ? normScoresForProject.reduce((acc, v) => acc + v, 0) / normCount
         : 0;
 
     return {
@@ -203,12 +204,19 @@ export default async function DashboardPage() {
     };
   });
 
-  // Sort descending by normalized score, break ties by raw score, then project ID
+  // Sort & Rank: Evaluated projects (reviewCount > 0) strictly outrank unreviewed projects.
+  // Descending by normalized score (with epsilon tolerance for floating-point precision).
+  // Break ties by raw score, then project ID ASC for determinism.
   projectResults.sort((a, b) => {
-    if (b.normalizedScore !== a.normalizedScore) {
+    const aHasReviews = a.reviewCount > 0;
+    const bHasReviews = b.reviewCount > 0;
+    if (aHasReviews !== bHasReviews) {
+      return aHasReviews ? -1 : 1;
+    }
+    if (Math.abs(b.normalizedScore - a.normalizedScore) > 1e-9) {
       return b.normalizedScore - a.normalizedScore;
     }
-    if (b.rawScore !== a.rawScore) {
+    if (Math.abs(b.rawScore - a.rawScore) > 1e-9) {
       return b.rawScore - a.rawScore;
     }
     return a.id.localeCompare(b.id);
@@ -234,7 +242,7 @@ export default async function DashboardPage() {
 
   const judgeProgress = judges.map((j) => {
     const assignedTracks = j.judgeAssignments.map((a) => a.track.name);
-    const assignedTrackIds = j.judgeAssignments.map((a) => a.trackId);
+    const assignedTrackIds = Array.from(new Set(j.judgeAssignments.map((a) => a.trackId)));
 
     // Sum total projects in assigned tracks
     let assignedCount = 0;
