@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/auth';
+import { dispatchWebhookEvent } from '@/lib/webhooks';
 
 export const dynamic = 'force-dynamic';
 
@@ -113,6 +114,15 @@ export async function POST(req: NextRequest) {
         payload: JSON.stringify(updateData),
       },
     });
+
+    if (updatedEvent.resultsPublic) {
+      dispatchWebhookEvent('results.unsealed', {
+        resultsPublic: updatedEvent.resultsPublic,
+        votingOpen: updatedEvent.votingOpen,
+        unsealedBy: session.email,
+        timestamp: new Date().toISOString(),
+      }).catch(() => {});
+    }
 
     return NextResponse.json({
       success: true,

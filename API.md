@@ -407,3 +407,203 @@ project_id,project_title,track,raw_score,normalized_score,rank
 prj_01,"Glass Signal","Developer Tools",4.25,1.1420,1
 prj_04,"Deep Compass","Developer Tools",3.80,0.4852,2
 ```
+
+---
+
+## 8. Tier 4 Stretch Surface & Developer Platform APIs
+
+### 8.1 Signed Judge Certificates API
+
+#### `GET /api/judge/certificate`
+Generates a canonical, HMAC-SHA256 signed evaluation credential for the authenticated judge.
+
+* **Access:** Judge role only (`401 Unauthorized` for anonymous, `403 Forbidden` for participants).
+* **Query Parameters:**
+  * `judge` (optional): Must match authenticated user ID (prevent IDOR).
+* **Response (`200 OK`):**
+```json
+{
+  "success": true,
+  "certificate": {
+    "version": "1.0",
+    "issuedAt": "2026-09-28T16:30:00.000Z",
+    "event": "DOGFOOD Hackathon 2026",
+    "judgeId": "usr_jdg_a_01",
+    "judgeName": "Dr. Aris Thorne",
+    "tracks": ["Developer Tools & Infrastructure"],
+    "assignedProjects": 20,
+    "reviewsCompleted": 18,
+    "completionRate": 90,
+    "signature": "d9f8c3746a... (64-char hex HMAC-SHA256)"
+  },
+  "verificationToken": "eyJ2ZXJzaW9uIjoiMS4w... (URL-safe Base64)",
+  "verificationUrl": "/verify?record=eyJ2ZXJzaW9u..."
+}
+```
+
+#### `POST /api/judge/certificate`
+Cryptographically verifies an evaluation certificate token.
+
+* **Access:** Public (No authentication required)
+* **Request Body:**
+```json
+{
+  "token": "eyJ2ZXJzaW9uIjoiMS4w..."
+}
+```
+* **Response (`200 OK`):**
+```json
+{
+  "valid": true,
+  "payload": {
+    "version": "1.0",
+    "event": "DOGFOOD Hackathon 2026",
+    "judgeId": "usr_jdg_a_01",
+    "judgeName": "Dr. Aris Thorne",
+    "tracks": ["Developer Tools & Infrastructure"],
+    "assignedProjects": 20,
+    "reviewsCompleted": 18,
+    "completionRate": 90,
+    "signature": "d9f8c3746a..."
+  }
+}
+```
+* **Verification Failure (`200 OK`):**
+```json
+{
+  "valid": false,
+  "error": "Cryptographic signature mismatch. Record has been altered or tampered with."
+}
+```
+
+---
+
+### 8.2 Real-Time Webhooks Engine
+
+#### `GET /api/webhooks`
+Lists all active webhook subscriptions with masked secrets.
+
+* **Access:** Organizer, Admin only (`403 Forbidden` for others)
+* **Response (`200 OK`):**
+```json
+{
+  "success": true,
+  "subscriptions": [
+    {
+      "id": "wh_01",
+      "url": "https://external.service/webhook",
+      "events": ["score.submitted", "vote.cast", "results.unsealed"],
+      "isActive": true,
+      "createdAt": "2026-09-28T16:00:00.000Z",
+      "secret": "whsec_****a3b8"
+    }
+  ]
+}
+```
+
+#### `POST /api/webhooks`
+Creates a new webhook subscription or sends a test ping.
+
+* **Access:** Organizer, Admin only
+* **Request Body (Registration):**
+```json
+{
+  "url": "https://external.service/webhook",
+  "secret": "super_secret_webhook_key_32bytes",
+  "events": ["score.submitted", "vote.cast", "results.unsealed"]
+}
+```
+* **Request Body (Test Ping):**
+```json
+{
+  "action": "test",
+  "subscriptionId": "wh_01"
+}
+```
+* **Payload Dispatched to Target:**
+  * Headers: `Content-Type: application/json`, `X-OmniJudge-Signature-256: <hmac_hex>`, `X-OmniJudge-Event: <event_name>`
+  * Delivery: Non-blocking asynchronous dispatch with 4,000ms timeout.
+
+#### `DELETE /api/webhooks`
+Deletes an active webhook subscription.
+
+* **Access:** Organizer, Admin only
+* **Query Parameters:** `id=<subscription_id>`
+
+---
+
+### 8.3 Full State JSON Export
+
+#### `GET /api/export.json`
+Exports complete event state including projects, teams, tracks, criteria, and calculated MAD-normalized standings.
+
+* **Access:** Organizer, Admin only (`403 Forbidden` for others)
+* **Response Headers:** `Content-Type: application/json; charset=utf-8`, `Content-Disposition: attachment; filename="omnijudge_export.json"`
+* **Response Body (`200 OK`):**
+```json
+{
+  "version": "1.0",
+  "exportedAt": "2026-09-28T16:30:00.000Z",
+  "event": { "id": "evt_01", "name": "DOGFOOD Hackathon 2026", ... },
+  "tracks": [ ... ],
+  "rubricCriteria": [ ... ],
+  "teams": [ ... ],
+  "projects": [ ... ],
+  "leaderboard": [
+    {
+      "rank": 1,
+      "projectId": "prj_01",
+      "title": "Glass Signal",
+      "track": "Developer Tools",
+      "rawScore": 4.25,
+      "normalizedScore": 1.142,
+      "reviewCount": 3
+    }
+  ]
+}
+```
+
+---
+
+### 8.4 Bulk Data Import
+
+#### `POST /api/import`
+Transactionally imports or updates tracks, teams, and projects.
+
+* **Access:** Organizer, Admin only (`403 Forbidden` for others)
+* **Request Body:**
+```json
+{
+  "tracks": [
+    { "id": "trk_99", "name": "Quantum Computing", "description": "Next-gen algorithms" }
+  ],
+  "teams": [
+    { "id": "tm_99", "name": "Q-Bits", "affiliation": "MIT" }
+  ],
+  "projects": [
+    { "id": "prj_99", "teamId": "tm_99", "trackId": "trk_99", "title": "QuantumSim", "summary": "Full state quantum simulator" }
+  ]
+}
+```
+* **Response (`200 OK`):**
+```json
+{
+  "success": true,
+  "imported": {
+    "tracks": 1,
+    "teams": 1,
+    "projects": 1
+  }
+}
+```
+
+---
+
+### 8.5 OpenAPI 3.1 Specification
+
+#### `GET /api/openapi.json`
+Retrieves machine-readable OpenAPI 3.1.0 schema for the entire platform.
+
+* **Access:** Public (No authentication required)
+* **Response (`200 OK`):** Valid OpenAPI 3.1.0 JSON covering 12 endpoints, security schemes (`sessionAuth`), component schemas, and parameters.
+

@@ -22,6 +22,10 @@ import {
   X,
   Loader2,
   Code2,
+  ShieldCheck,
+  Copy,
+  Check,
+  Download,
 } from 'lucide-react';
 
 export interface ProjectItem {
@@ -234,6 +238,48 @@ export function JudgePortalClient({
     }));
   };
 
+  // Verifiable Certificate state
+  const [certLoading, setCertLoading] = React.useState(false);
+  const [certData, setCertData] = React.useState<{
+    payload: {
+      judgeId: string;
+      judgeName: string;
+      tracks: string[];
+      reviewsCompleted: number;
+      event: string;
+      issuedAt: string;
+    };
+    signature: string;
+    token: string;
+    verificationUrl: string;
+  } | null>(null);
+  const [showCertModal, setShowCertModal] = React.useState(false);
+  const [certCopied, setCertCopied] = React.useState(false);
+
+  const handleOpenCertificate = async () => {
+    setCertLoading(true);
+    try {
+      const res = await fetch('/api/judge/certificate');
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setCertData(data);
+        setShowCertModal(true);
+      } else {
+        setStatusMessage({
+          type: 'error',
+          text: data.error || 'Failed to generate signed judge certificate.',
+        });
+      }
+    } catch {
+      setStatusMessage({
+        type: 'error',
+        text: 'Error generating certificate record.',
+      });
+    } finally {
+      setCertLoading(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedProject) return;
@@ -339,23 +385,39 @@ export function JudgePortalClient({
             </div>
           </div>
 
-          {/* Progress Pill / Evaluation Counter */}
-          <div className="bg-black/40 border border-white/[0.08] p-4 rounded-xl flex items-center gap-5 min-w-[220px] self-start md:self-auto">
-            <div className="space-y-1.5 flex-1">
-              <div className="flex justify-between text-xs font-mono">
-                <span className="text-slate-400">Reviews Done</span>
-                <span className="text-white font-bold">{scoredCount} / {projects.length}</span>
+          {/* Progress Pill & Certificate Actions */}
+          <div className="flex flex-col gap-2 min-w-[240px] self-start md:self-auto">
+            <div className="bg-black/40 border border-white/[0.08] p-4 rounded-xl flex items-center gap-5">
+              <div className="space-y-1.5 flex-1">
+                <div className="flex justify-between text-xs font-mono">
+                  <span className="text-slate-400">Reviews Done</span>
+                  <span className="text-white font-bold">{scoredCount} / {projects.length}</span>
+                </div>
+                <div className="w-full bg-white/[0.06] rounded-full h-2 overflow-hidden border border-white/[0.05]">
+                  <div
+                    className="bg-gradient-to-r from-cyan-500 to-indigo-500 h-2 rounded-full transition-all duration-300 shadow-[0_0_8px_rgba(6,182,212,0.4)]"
+                    style={{ width: `${progressPercent}%` }}
+                  />
+                </div>
               </div>
-              <div className="w-full bg-white/[0.06] rounded-full h-2 overflow-hidden border border-white/[0.05]">
-                <div
-                  className="bg-gradient-to-r from-cyan-500 to-indigo-500 h-2 rounded-full transition-all duration-300 shadow-[0_0_8px_rgba(6,182,212,0.4)]"
-                  style={{ width: `${progressPercent}%` }}
-                />
+              <div className="text-right">
+                <span className="text-2xl font-extrabold font-mono text-cyan-400">{progressPercent}%</span>
               </div>
             </div>
-            <div className="text-right">
-              <span className="text-2xl font-extrabold font-mono text-cyan-400">{progressPercent}%</span>
-            </div>
+
+            <button
+              type="button"
+              onClick={handleOpenCertificate}
+              disabled={certLoading}
+              className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 hover:text-emerald-300 transition-all shadow-[0_0_15px_rgba(16,185,129,0.15)]"
+            >
+              {certLoading ? (
+                <Loader2 className="size-3.5 animate-spin" />
+              ) : (
+                <ShieldCheck className="size-3.5" />
+              )}
+              <span>Verifiable Judge Certificate</span>
+            </button>
           </div>
         </div>
 
@@ -833,6 +895,126 @@ export function JudgePortalClient({
           </div>
         )}
       </main>
+
+      {/* Verifiable Judge Certificate Modal */}
+      {showCertModal && certData && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in-0 duration-200">
+          <div className="w-full max-w-lg rounded-3xl border border-emerald-500/30 bg-[#0d121c] p-6 sm:p-8 shadow-2xl relative text-left overflow-hidden">
+            {/* Ambient emerald background glow */}
+            <div className="absolute top-0 right-0 w-48 h-48 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+
+            <button
+              onClick={() => setShowCertModal(false)}
+              className="absolute right-4 top-4 p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+              aria-label="Close dialog"
+            >
+              <X className="size-5" />
+            </button>
+
+            <div className="flex items-center gap-3 mb-4">
+              <div className="size-10 rounded-2xl bg-emerald-500/10 border border-emerald-500/40 flex items-center justify-center text-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.2)]">
+                <ShieldCheck className="size-5" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-white tracking-tight">Verifiable Judge Certificate</h3>
+                <span className="text-[11px] font-mono text-emerald-400">HMAC-SHA256 DIGITAL RECORD</span>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-400 mb-5 leading-relaxed">
+              This digital credential certifies your participation as an official hackathon judge. The record includes your evaluation count and is cryptographically signed using the event secret.
+            </p>
+
+            {/* Credential summary table */}
+            <div className="p-4 rounded-2xl bg-black/50 border border-white/10 space-y-2.5 mb-5 text-xs">
+              <div className="flex justify-between items-center py-1 border-b border-white/5">
+                <span className="text-slate-400">Judge Name:</span>
+                <span className="font-bold text-white">{certData.payload.judgeName}</span>
+              </div>
+              <div className="flex justify-between items-center py-1 border-b border-white/5">
+                <span className="text-slate-400">Event:</span>
+                <span className="font-medium text-slate-200">{certData.payload.event}</span>
+              </div>
+              <div className="flex justify-between items-center py-1 border-b border-white/5">
+                <span className="text-slate-400">Reviews Completed:</span>
+                <span className="font-bold font-mono text-emerald-400">{certData.payload.reviewsCompleted}</span>
+              </div>
+              <div className="flex justify-between items-center py-1 border-b border-white/5">
+                <span className="text-slate-400">Assigned Tracks:</span>
+                <span className="font-mono text-cyan-300">{certData.payload.tracks.join(', ') || 'General'}</span>
+              </div>
+              <div className="flex justify-between items-center py-1">
+                <span className="text-slate-400">Issued Timestamp:</span>
+                <span className="font-mono text-[11px] text-slate-400">{new Date(certData.payload.issuedAt).toLocaleString()}</span>
+              </div>
+            </div>
+
+            {/* Signature snippet */}
+            <div className="p-3 rounded-xl bg-black/60 border border-white/10 mb-6">
+              <span className="text-[10px] font-mono text-slate-400 block mb-1">Cryptographic Signature:</span>
+              <p className="font-mono text-[11px] text-emerald-300/80 break-all select-all">
+                {certData.signature}
+              </p>
+            </div>
+
+            {/* Action buttons */}
+            <div className="flex flex-col sm:flex-row items-center gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  const url = `${window.location.origin}/verify?record=${certData.token}`;
+                  navigator.clipboard.writeText(url);
+                  setCertCopied(true);
+                  setTimeout(() => setCertCopied(false), 2000);
+                }}
+                className="w-full sm:flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-semibold bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-[0_0_20px_rgba(16,185,129,0.3)] transition-all"
+              >
+                {certCopied ? (
+                  <>
+                    <Check className="size-3.5" />
+                    <span>Link Copied!</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="size-3.5" />
+                    <span>Copy Verification Link</span>
+                  </>
+                )}
+              </button>
+
+              <a
+                href={`/verify?record=${certData.token}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-medium bg-white/10 hover:bg-white/15 text-white transition-colors"
+              >
+                <ExternalLink className="size-3.5" />
+                <span>Verify Registry</span>
+              </a>
+
+              <button
+                type="button"
+                onClick={() => {
+                  const blob = new Blob([JSON.stringify(certData, null, 2)], {
+                    type: 'application/json',
+                  });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `omnijudge_certificate_${certData.payload.judgeId}.json`;
+                  a.click();
+                  URL.revokeObjectURL(url);
+                }}
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-medium bg-white/10 hover:bg-white/15 text-slate-200 hover:text-white transition-colors"
+                title="Download JSON Credential File"
+              >
+                <Download className="size-3.5 text-cyan-400" />
+                <span>Download Certificate</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

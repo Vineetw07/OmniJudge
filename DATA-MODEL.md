@@ -1,6 +1,6 @@
 # DOGFOOD 2026 Data Model & Entity Specifications
 
-> **Complete reference documentation for the 13 Prisma database models, entity-relationship constraints, fixture mapping rules, and transactional audit architecture.**
+> **Complete reference documentation for the 14 Prisma database models, entity-relationship constraints, fixture mapping rules, and transactional audit architecture.**
 
 ---
 
@@ -29,6 +29,15 @@ erDiagram
     Project ||--o{ CommunityVote : "receives"
     Project ||--o{ Comment : "has"
     RubricCriterion ||--o{ Score : "scored against"
+
+    WebhookSubscription {
+        string id PK "cuid()"
+        string url
+        string secret "HMAC secret"
+        string events "score.submitted,vote.cast,results.unsealed"
+        boolean isActive "default true"
+        datetime createdAt
+    }
 
     User {
         string id PK "cuid()"
@@ -303,6 +312,20 @@ Two fields were added to the existing `Event` model to power community voting st
 - `votingOpen`: `Boolean` (`@default(false)`) — controlled by organizer via `PATCH /api/community/settings`.
 - `resultsPublic`: `Boolean` (`@default(false)`) — when `false`, `GET /api/community/vote` returns `totalVotes: null` for all non-organizer roles, eliminating bandwagon bias and social cascading during the voting window.
 
+### 2.15 `WebhookSubscription` *(Tier 4 — Stretch Surface)*
+Stores registered webhook endpoints for external notification dispatch:
+- **Fields:**
+  - `id`: `String` (Primary Key, `@default(cuid())`).
+  - `url`: `String` (Target HTTP endpoint for POST payload delivery).
+  - `secret`: `String` (Random hex string used to compute HMAC-SHA256 signature headers).
+  - `events`: `String` (Comma-separated event topics, e.g. `"score.submitted,vote.cast,results.unsealed"`).
+  - `isActive`: `Boolean` (`@default(true)`).
+  - `createdAt`: `DateTime` (`@default(now())`).
+- **Security & Integrity:**
+  - Managed exclusively by `organizer` role via `GET`, `POST`, and `DELETE` at `/api/webhooks`.
+  - Secret is masked (`whsec_****...`) upon retrieval to prevent secret leakage.
+  - Non-blocking asynchronous dispatch with 4-second timeout.
+
 ---
 
 ## 3. Fixture Ingestion & Mapping (`fixtures.json`)
@@ -405,4 +428,23 @@ Used by organizer Server Components to stream live data:
 - **Judge Completion Rates:** Aggregates `Score.count` grouped by `judgeId` against `Project.count` for assigned tracks.
 - **Audit Stream:** Chronological feed of `AuditLog` rows sorted by `createdAt DESC`.
 - **Live Leaderboard:** Real-time normalized ranking updating with each submitted evaluation.
+
+### 5.3 Full Platform JSON Backup Export (`GET /api/export.json`) *(Tier 4 — Stretch Surface)*
+Restricted strictly to the `organizer` role. Provides a self-contained, lossless JSON backup:
+- **Payload Schema:**
+  - `exportedAt`: ISO 8601 UTC timestamp.
+  - `event`: Event metadata (`id`, `name`, `submissionsClose`).
+  - `tracks`: Complete list of tracks and assignments.
+  - `teams`: All registered teams and member lists.
+  - `rubricCriteria`: Defined criteria, weights, and max scores.
+  - `projects`: Submissions with track and team IDs.
+  - `leaderboard`: Full MAD-normalized ranking identical to the CSV export engine.
+  - `scores`: Raw evaluations per judge, project, and criterion.
+- **Use Cases:** Platform-to-platform migration, external Discord/Slack bot integration, long-term archival.
+
+### 5.4 Bulk Fixture Import & Ingestion Pipeline (`POST /api/import`) *(Tier 4 — Stretch Surface)*
+Restricted strictly to the `organizer` role. Supports transactional bulk updates:
+- **Validation:** Strict runtime parsing via Zod (`BulkImportPayloadSchema`).
+- **Idempotent Upsert:** Employs `prisma.$transaction` to upsert tracks, teams, projects, and criteria without dropping existing audit trails or foreign key constraints.
+- **Interoperability:** Accepts both official `Hack_docs/fixtures.json` structure and platform JSON exports from `/api/export.json`.
 

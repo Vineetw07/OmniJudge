@@ -23,6 +23,13 @@ import {
   AlertCircle,
   ThumbsUp,
   Flame,
+  Radio,
+  Upload,
+  Trash2,
+  Play,
+  ExternalLink,
+  Plus,
+  X,
 } from 'lucide-react';
 
 export interface DashboardKPIs {
@@ -80,6 +87,14 @@ export interface AuditLogItem {
   payloadSummary: string;
 }
 
+export interface WebhookSubscriptionItem {
+  id: string;
+  url: string;
+  events: string;
+  isActive: boolean;
+  createdAt: string;
+}
+
 export interface DashboardClientProps {
   user: {
     id: string;
@@ -92,6 +107,7 @@ export interface DashboardClientProps {
   judgeProgress: JudgeProgressItem[];
   leaderboard: LeaderboardItem[];
   recentAuditLogs: AuditLogItem[];
+  initialWebhooks?: WebhookSubscriptionItem[];
 }
 
 export function DashboardClient({
@@ -101,6 +117,7 @@ export function DashboardClient({
   judgeProgress,
   leaderboard,
   recentAuditLogs,
+  initialWebhooks = [],
 }: DashboardClientProps) {
   const [activeTab, setActiveTab] = React.useState('leaderboard');
   const [searchQuery, setSearchQuery] = React.useState('');
@@ -114,6 +131,130 @@ export function DashboardClient({
 
   // Audit Log Filter State: 'all' | 'judging' | 'community'
   const [auditFilter, setAuditFilter] = React.useState<'all' | 'judging' | 'community'>('all');
+
+  // Webhooks State (T4)
+  const [webhooksList, setWebhooksList] = React.useState<WebhookSubscriptionItem[]>(initialWebhooks);
+  const [isRegisteringWebhook, setIsRegisteringWebhook] = React.useState(false);
+  const [newWebhookUrl, setNewWebhookUrl] = React.useState('');
+  const [newWebhookSecret, setNewWebhookSecret] = React.useState('');
+  const [newWebhookEvents, setNewWebhookEvents] = React.useState('score.submitted,vote.cast,results.unsealed');
+  const [webhookSubmitting, setWebhookSubmitting] = React.useState(false);
+  const [webhookFeedback, setWebhookFeedback] = React.useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [testingWebhookId, setTestingWebhookId] = React.useState<string | null>(null);
+  const [deletingWebhookId, setDeletingWebhookId] = React.useState<string | null>(null);
+
+  // Bulk Import Modal State (T4)
+  const [showImportModal, setShowImportModal] = React.useState(false);
+  const [importJsonText, setImportJsonText] = React.useState('');
+  const [isImporting, setIsImporting] = React.useState(false);
+  const [importResult, setImportResult] = React.useState<{ success: boolean; message: string } | null>(null);
+
+  const handleRegisterWebhook = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setWebhookSubmitting(true);
+    setWebhookFeedback(null);
+    try {
+      const res = await fetch('/api/webhooks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          url: newWebhookUrl.trim(),
+          secret: newWebhookSecret.trim(),
+          events: newWebhookEvents.trim(),
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setWebhooksList((prev) => [data.subscription, ...prev]);
+        setNewWebhookUrl('');
+        setNewWebhookSecret('');
+        setIsRegisteringWebhook(false);
+        setWebhookFeedback({ type: 'success', message: 'Webhook registered successfully!' });
+      } else {
+        setWebhookFeedback({ type: 'error', message: data.error || 'Failed to register webhook' });
+      }
+    } catch {
+      setWebhookFeedback({ type: 'error', message: 'Network error registering webhook' });
+    } finally {
+      setWebhookSubmitting(false);
+    }
+  };
+
+  const handleTestWebhook = async (id: string, url: string) => {
+    setTestingWebhookId(id);
+    setWebhookFeedback(null);
+    try {
+      const res = await fetch('/api/webhooks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'test', id, url }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setWebhookFeedback({ type: 'success', message: `Test ping dispatched to ${url}` });
+      } else {
+        setWebhookFeedback({ type: 'error', message: data.error || 'Test ping failed' });
+      }
+    } catch {
+      setWebhookFeedback({ type: 'error', message: 'Error executing test ping' });
+    } finally {
+      setTestingWebhookId(null);
+    }
+  };
+
+  const handleDeleteWebhook = async (id: string) => {
+    setDeletingWebhookId(id);
+    setWebhookFeedback(null);
+    try {
+      const res = await fetch(`/api/webhooks?id=${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setWebhooksList((prev) => prev.filter((w) => w.id !== id));
+        setWebhookFeedback({ type: 'success', message: 'Webhook removed successfully' });
+      } else {
+        setWebhookFeedback({ type: 'error', message: data.error || 'Failed to delete webhook' });
+      }
+    } catch {
+      setWebhookFeedback({ type: 'error', message: 'Error deleting webhook' });
+    } finally {
+      setDeletingWebhookId(null);
+    }
+  };
+
+  const handleExecuteImport = async () => {
+    if (!importJsonText.trim()) return;
+    setIsImporting(true);
+    setImportResult(null);
+    try {
+      const parsed = JSON.parse(importJsonText);
+      const res = await fetch('/api/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(parsed),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setImportResult({
+          success: true,
+          message: `Imported: ${data.imported.tracks} tracks, ${data.imported.teams} teams, ${data.imported.projects} projects. Reload page to see updated leaderboard.`,
+        });
+      } else {
+        setImportResult({
+          success: false,
+          message: data.error || 'Failed to import dataset',
+        });
+      }
+    } catch (err) {
+      setImportResult({
+        success: false,
+        message: err instanceof Error ? `JSON Parse Error: ${err.message}` : 'Invalid JSON format',
+      });
+    } finally {
+      setIsImporting(false);
+    }
+  };
 
   // Auto-dismiss feedback notification after 4s
   React.useEffect(() => {
@@ -257,7 +398,7 @@ export function DashboardClient({
           <div className="flex items-center gap-2.5">
             <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-cyan-500/10 text-cyan-400 border border-cyan-500/25">
               <ShieldCheck className="size-3.5" />
-              <span>Organizer Control Tower</span>
+              <span>Control Tower</span>
             </div>
             <span className="text-xs text-muted-foreground hidden sm:inline">•</span>
             <span className="text-xs text-muted-foreground hidden sm:inline">
@@ -272,7 +413,9 @@ export function DashboardClient({
             </div>
             <div className="h-4 w-[1px] bg-white/10 hidden sm:block" />
             <div className="hidden sm:flex items-center gap-2 text-muted-foreground">
-              <span className="font-semibold text-foreground">{user.name}</span>
+              {user.name && user.name.toLowerCase() !== user.role.toLowerCase() && (
+                <span className="font-semibold text-foreground">{user.name}</span>
+              )}
               <Badge
                 variant="outline"
                 className="text-[10px] uppercase font-mono py-0 text-cyan-400 border-cyan-500/30 bg-cyan-500/5"
@@ -297,14 +440,30 @@ export function DashboardClient({
             </p>
           </div>
 
-          {/* Prominent CSV Export CTA Button */}
-          <div className="flex items-center gap-2">
+          {/* Action Bar Buttons */}
+          <div className="flex flex-wrap items-center gap-2">
             <a href="/api/export.csv" download="omnijudge_scores.csv">
-              <Button className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-semibold gap-2 shadow-[0_0_20px_rgba(56,189,248,0.25)] border border-cyan-400/30">
-                <Download className="size-4" />
-                <span>⬇ Export CSV (RFC 4180)</span>
+              <Button className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-semibold gap-1.5 shadow-[0_0_20px_rgba(56,189,248,0.25)] border border-cyan-400/30 text-xs">
+                <Download className="size-3.5" />
+                <span>Export CSV (T2)</span>
               </Button>
             </a>
+
+            <a href="/api/export.json" download="omnijudge_full_export.json">
+              <Button variant="outline" className="border-cyan-500/30 bg-cyan-500/10 text-cyan-300 hover:bg-cyan-500/20 font-semibold gap-1.5 text-xs">
+                <Download className="size-3.5" />
+                <span>Export JSON (T4)</span>
+              </Button>
+            </a>
+
+            <Button
+              variant="outline"
+              onClick={() => setShowImportModal(true)}
+              className="border-white/10 bg-white/[0.04] text-slate-300 hover:text-white hover:bg-white/[0.08] font-medium gap-1.5 text-xs"
+            >
+              <Upload className="size-3.5" />
+              <span>Bulk Import</span>
+            </Button>
           </div>
         </div>
 
@@ -690,7 +849,7 @@ export function DashboardClient({
         {/* Tabbed View: Leaderboard vs Judge Progress vs Audit Trail */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-4">
-            <TabsList className="bg-white/5 border border-white/10 p-1 rounded-xl grid grid-cols-3 w-full sm:w-[440px]">
+            <TabsList className="bg-white/5 border border-white/10 p-1 rounded-xl grid grid-cols-4 w-full sm:w-[600px]">
               <TabsTrigger
                 value="leaderboard"
                 className="flex items-center gap-1.5 text-xs rounded-lg data-[state=active]:bg-cyan-500/15 data-[state=active]:text-cyan-300 data-[state=active]:border-cyan-500/30 data-[state=active]:shadow-sm transition-all"
@@ -711,6 +870,13 @@ export function DashboardClient({
               >
                 <History className="size-3.5" />
                 <span>Audit Trail</span>
+              </TabsTrigger>
+              <TabsTrigger
+                value="webhooks"
+                className="flex items-center gap-1.5 text-xs rounded-lg data-[state=active]:bg-cyan-500/15 data-[state=active]:text-cyan-300 data-[state=active]:border-cyan-500/30 data-[state=active]:shadow-sm transition-all"
+              >
+                <Radio className="size-3.5 text-cyan-400" />
+                <span>Webhooks & T4</span>
               </TabsTrigger>
             </TabsList>
 
@@ -1062,8 +1228,365 @@ export function DashboardClient({
               </div>
             </motion.div>
           </TabsContent>
+
+          {/* Tab 4: Webhooks & T4 Stretch Surface */}
+          <TabsContent value="webhooks" className="space-y-6">
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.2 }}
+              className="space-y-6"
+            >
+              {/* T4 Stretch Quick Surface Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <a
+                  href="/embed/projects"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="rounded-2xl border border-white/10 bg-white/[0.02] hover:bg-white/[0.04] p-5 transition-all group border-l-4 border-l-cyan-500 shadow-lg"
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[11px] font-mono uppercase text-cyan-400 font-bold">PILLAR 1</span>
+                    <ExternalLink className="size-3.5 text-slate-500 group-hover:text-cyan-300 transition-colors" />
+                  </div>
+                  <h4 className="text-sm font-bold text-white group-hover:text-cyan-300 transition-colors">
+                    Embeddable Gallery Widget
+                  </h4>
+                  <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                    Iframe-ready distraction-free project showcase at <code className="text-cyan-300">/embed/projects</code>.
+                  </p>
+                </a>
+
+                <a
+                  href="/verify"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="rounded-2xl border border-white/10 bg-white/[0.02] hover:bg-white/[0.04] p-5 transition-all group border-l-4 border-l-emerald-500 shadow-lg"
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[11px] font-mono uppercase text-emerald-400 font-bold">PILLAR 2</span>
+                    <ExternalLink className="size-3.5 text-slate-500 group-hover:text-emerald-300 transition-colors" />
+                  </div>
+                  <h4 className="text-sm font-bold text-white group-hover:text-emerald-300 transition-colors">
+                    Judge Record Registry
+                  </h4>
+                  <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                    Cryptographic HMAC-SHA256 verification portal at <code className="text-emerald-300">/verify</code>.
+                  </p>
+                </a>
+
+                <a
+                  href="/api-docs"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="rounded-2xl border border-white/10 bg-white/[0.02] hover:bg-white/[0.04] p-5 transition-all group border-l-4 border-l-indigo-500 shadow-lg"
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[11px] font-mono uppercase text-indigo-400 font-bold">PILLAR 5</span>
+                    <ExternalLink className="size-3.5 text-slate-500 group-hover:text-indigo-300 transition-colors" />
+                  </div>
+                  <h4 className="text-sm font-bold text-white group-hover:text-indigo-300 transition-colors">
+                    REST API Reference
+                  </h4>
+                  <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                    Interactive OpenAPI 3.1 REST explorer & documentation at <code className="text-indigo-300">/api-docs</code>.
+                  </p>
+                </a>
+              </div>
+
+              {/* Webhooks Engine Manager */}
+              <div className="rounded-2xl border border-white/10 bg-[var(--glass-bg)] backdrop-blur-md p-6 shadow-xl space-y-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-white/10">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <Radio className="size-5 text-cyan-400 animate-pulse" />
+                      <h3 className="text-lg font-bold text-white">Real-Time Webhooks Engine</h3>
+                      <Badge variant="outline" className="text-[10px] font-mono border-cyan-500/30 text-cyan-300 bg-cyan-500/10">
+                        PILLAR 3
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Pipe live events (<code className="text-cyan-300">score.submitted</code>, <code className="text-cyan-300">vote.cast</code>, <code className="text-cyan-300">results.unsealed</code>) into Discord/Slack bots with HMAC-SHA256 signatures.
+                    </p>
+                  </div>
+
+                  <Button
+                    onClick={() => setIsRegisteringWebhook((v) => !v)}
+                    className="bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-semibold gap-1.5 text-xs shadow-[0_0_15px_rgba(56,189,248,0.25)]"
+                  >
+                    <Plus className="size-4" />
+                    <span>{isRegisteringWebhook ? 'Cancel' : 'Register Webhook'}</span>
+                  </Button>
+                </div>
+
+                {/* Feedback Toast */}
+                <AnimatePresence>
+                  {webhookFeedback && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -5 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -5 }}
+                      className={`p-3 rounded-xl border text-xs flex items-center justify-between ${
+                        webhookFeedback.type === 'success'
+                          ? 'bg-emerald-950/80 border-emerald-500/40 text-emerald-200'
+                          : 'bg-red-950/80 border-red-500/40 text-red-200'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        {webhookFeedback.type === 'success' ? (
+                          <CheckCircle2 className="size-4 text-emerald-400" />
+                        ) : (
+                          <AlertCircle className="size-4 text-red-400" />
+                        )}
+                        <span>{webhookFeedback.message}</span>
+                      </div>
+                      <button
+                        onClick={() => setWebhookFeedback(null)}
+                        className="text-white/60 hover:text-white"
+                      >
+                        <X className="size-3.5" />
+                      </button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                {/* Register Webhook Expandable Form */}
+                {isRegisteringWebhook && (
+                  <form onSubmit={handleRegisterWebhook} className="p-5 rounded-2xl bg-white/[0.02] border border-cyan-500/20 space-y-4 animate-in fade-in-0 duration-200">
+                    <h4 className="text-xs font-bold text-cyan-300 uppercase tracking-wider font-mono">
+                      New Webhook Subscription
+                    </h4>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-xs font-medium text-slate-300 block mb-1">
+                          Payload Target URL
+                        </label>
+                        <input
+                          type="url"
+                          required
+                          value={newWebhookUrl}
+                          onChange={(e) => setNewWebhookUrl(e.target.value)}
+                          placeholder="https://hooks.slack.com/services/... or http://..."
+                          className="w-full px-3 py-2 rounded-xl bg-black/40 border border-white/10 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500/50 font-mono"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-medium text-slate-300 block mb-1">
+                          HMAC Signing Secret (min 6 characters)
+                        </label>
+                        <input
+                          type="password"
+                          required
+                          minLength={6}
+                          value={newWebhookSecret}
+                          onChange={(e) => setNewWebhookSecret(e.target.value)}
+                          placeholder="whsec_custom_secret_key"
+                          className="w-full px-3 py-2 rounded-xl bg-black/40 border border-white/10 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500/50 font-mono"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-medium text-slate-300 block mb-1">
+                        Subscribed Events (comma-separated or &apos;*&apos; for all)
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={newWebhookEvents}
+                        onChange={(e) => setNewWebhookEvents(e.target.value)}
+                        placeholder="score.submitted,vote.cast,results.unsealed"
+                        className="w-full px-3 py-2 rounded-xl bg-black/40 border border-white/10 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500/50 font-mono"
+                      />
+                    </div>
+
+                    <div className="flex justify-end gap-2 pt-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setIsRegisteringWebhook(false)}
+                        className="text-xs border-white/10"
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        type="submit"
+                        disabled={webhookSubmitting}
+                        size="sm"
+                        className="bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-semibold text-xs"
+                      >
+                        {webhookSubmitting ? 'Registering...' : 'Save Webhook Subscription'}
+                      </Button>
+                    </div>
+                  </form>
+                )}
+
+                {/* Subscriptions List Table */}
+                <div className="rounded-xl border border-white/10 overflow-hidden">
+                  <table className="w-full text-xs text-left">
+                    <thead className="bg-white/[0.02] border-b border-white/10 text-muted-foreground uppercase font-mono tracking-wider">
+                      <tr>
+                        <th className="py-3 px-4">Endpoint URL</th>
+                        <th className="py-3 px-4">Subscribed Events</th>
+                        <th className="py-3 px-4 text-center">Status</th>
+                        <th className="py-3 px-4 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-white/5">
+                      {webhooksList.length === 0 ? (
+                        <tr>
+                          <td colSpan={4} className="py-8 text-center text-muted-foreground font-mono text-xs">
+                            No webhook subscriptions configured yet. Click &quot;Register Webhook&quot; to add one.
+                          </td>
+                        </tr>
+                      ) : (
+                        webhooksList.map((wh) => (
+                          <tr key={wh.id} className="hover:bg-white/[0.02] transition-colors">
+                            <td className="py-3 px-4 font-mono text-slate-200">
+                              <div className="flex items-center gap-1.5">
+                                <span className="truncate max-w-[280px]" title={wh.url}>
+                                  {wh.url}
+                                </span>
+                              </div>
+                              <span className="text-[10px] text-muted-foreground font-mono">{wh.id}</span>
+                            </td>
+                            <td className="py-3 px-4">
+                              <div className="flex flex-wrap gap-1">
+                                {wh.events.split(',').map((e) => (
+                                  <Badge
+                                    key={e}
+                                    variant="outline"
+                                    className="text-[10px] font-mono border-white/10 bg-white/[0.03] text-cyan-300"
+                                  >
+                                    {e.trim()}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </td>
+                            <td className="py-3 px-4 text-center">
+                              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+                                <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                                ACTIVE
+                              </span>
+                            </td>
+                            <td className="py-3 px-4 text-right">
+                              <div className="flex items-center justify-end gap-1.5">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  disabled={testingWebhookId === wh.id}
+                                  onClick={() => handleTestWebhook(wh.id, wh.url)}
+                                  className="h-7 px-2 text-[11px] font-mono border-white/10 bg-white/[0.03] text-cyan-300 hover:bg-white/[0.07]"
+                                  title="Dispatch immediate test ping event"
+                                >
+                                  <Play className="size-3 mr-1" />
+                                  <span>{testingWebhookId === wh.id ? 'Pinging...' : 'Ping'}</span>
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  disabled={deletingWebhookId === wh.id}
+                                  onClick={() => handleDeleteWebhook(wh.id)}
+                                  className="h-7 px-2 text-[11px] font-mono border-red-500/20 bg-red-500/10 text-red-300 hover:bg-red-500/20 hover:text-red-200"
+                                  title="Delete subscription"
+                                >
+                                  <Trash2 className="size-3" />
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </motion.div>
+          </TabsContent>
         </Tabs>
       </main>
+
+      {/* Bulk Import Modal Dialog */}
+      {showImportModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in-0 duration-200">
+          <div className="w-full max-w-xl rounded-3xl border border-cyan-500/30 bg-[#0d121c] p-6 sm:p-8 shadow-2xl relative text-left overflow-hidden">
+            <button
+              onClick={() => {
+                setShowImportModal(false);
+                setImportResult(null);
+              }}
+              className="absolute right-4 top-4 p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+              aria-label="Close dialog"
+            >
+              <X className="size-5" />
+            </button>
+
+            <div className="flex items-center gap-3 mb-4">
+              <div className="size-10 rounded-2xl bg-cyan-500/10 border border-cyan-500/40 flex items-center justify-center text-cyan-400 shadow-[0_0_20px_rgba(56,189,248,0.2)]">
+                <Upload className="size-5" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-white tracking-tight">Bulk Data Import</h3>
+                <span className="text-[11px] font-mono text-cyan-400">ACID TRANSACTIONAL ENGINE</span>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-400 mb-4 leading-relaxed">
+              Import tracks, teams, and projects directly into SQLite. Supports DOGFOOD <code className="text-cyan-300">fixtures.json</code> schema or native OmniJudge JSON structure.
+            </p>
+
+            {importResult && (
+              <div
+                className={`p-3.5 rounded-xl border text-xs mb-4 ${
+                  importResult.success
+                    ? 'bg-emerald-950/80 border-emerald-500/40 text-emerald-200'
+                    : 'bg-red-950/80 border-red-500/40 text-red-200'
+                }`}
+              >
+                {importResult.message}
+              </div>
+            )}
+
+            <div className="space-y-3 mb-6">
+              <label className="text-xs font-mono text-slate-300 block">
+                Paste JSON Dataset:
+              </label>
+              <textarea
+                rows={10}
+                value={importJsonText}
+                onChange={(e) => setImportJsonText(e.target.value)}
+                placeholder={`{\n  "tracks": [{ "id": "trk_99", "name": "Web3 & Zero-Knowledge" }],\n  "teams": [{ "id": "tm_99", "name": "Cipher Labs" }],\n  "projects": [{\n    "id": "prj_99",\n    "title": "ZK Rollup Bridge",\n    "summary": "Trustless cross-chain verification",\n    "trackId": "trk_99",\n    "teamId": "tm_99"\n  }]\n}`}
+                className="w-full p-3.5 rounded-xl bg-black/60 border border-white/10 font-mono text-xs text-cyan-300 focus:outline-none focus:border-cyan-500/50"
+              />
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setShowImportModal(false);
+                  setImportResult(null);
+                }}
+                className="text-xs border-white/10"
+              >
+                Close
+              </Button>
+              <Button
+                disabled={isImporting || !importJsonText.trim()}
+                onClick={handleExecuteImport}
+                size="sm"
+                className="bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-semibold text-xs shadow-[0_0_15px_rgba(56,189,248,0.25)]"
+              >
+                {isImporting ? 'Importing Dataset...' : 'Execute Transactional Import'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

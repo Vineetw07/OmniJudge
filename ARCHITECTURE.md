@@ -16,13 +16,16 @@ DOGFOOD 2026 is architected as an offline-first, high-resilience, single-tier fu
 │   │                      Next.js 14 App Router                     │   │
 │   │                                                                │   │
 │   │   [ React Server Components ]     [ Dynamic Route Handlers ]   │   │
-│   │   - /projects (Public Gallery)     - /api/auth/login           │   │
+│   │   - /projects (Public Gallery)     - /api/auth/login, /logout  │   │
 │   │   - /judge (Scoring Portal)        - /api/projects             │   │
-│   │   - /dashboard (Organizer KPIs)    - /api/judge/scores         │   │
-│   │                                    - /api/export.csv           │   │
-│   │                                    - /api/community/vote       │   │
-│   │                                    - /api/community/comments   │   │
-│   │                                    - /api/community/settings   │   │
+│   │   - /dashboard (Control Tower)     - /api/judge/scores         │   │
+│   │   - /embed/projects (T4 Widget)    - /api/export.csv           │   │
+│   │   - /verify (T4 Public Verifier)   - /api/community/* (T3)     │   │
+│   │   - /api-docs (T4 API Explorer)    - /api/judge/certificate (T4│   │
+│   │                                    - /api/webhooks (T4)        │   │
+│   │                                    - /api/export.json (T4)     │   │
+│   │                                    - /api/import (T4)          │   │
+│   │                                    - /api/openapi.json (T4)    │   │
 │   └───────────────┬────────────────────────────────┬───────────────┘   │
 │                   │                                │                   │
 │                   ▼                                ▼                   │
@@ -31,6 +34,8 @@ DOGFOOD 2026 is architected as an offline-first, high-resilience, single-tier fu
 │   │                                                                │   │
 │   │   • src/lib/auth.ts          (Session extraction & RBAC)       │   │
 │   │   • src/lib/normalization.ts (MAD Modified Z-Score engine)     │   │
+│   │   • src/lib/certificates.ts  (HMAC-SHA256 Signed Credentials)  │   │
+│   │   • src/lib/webhooks.ts      (Asynchronous Dispatch Engine)    │   │
 │   │   • src/lib/prisma.ts        (Prisma Client Singleton)         │   │
 │   └───────────────────────────────┬────────────────────────────────┘   │
 │                                   │                                    │
@@ -249,3 +254,32 @@ volumes:
 ### Compatibility Audit
 - **Types:** All fields in `prisma/schema.prisma` use standard scalar types (`String`, `Int`, `Float`, `Boolean`, `DateTime`, `Json`) fully supported by both SQLite and PostgreSQL.
 - **Transactions:** `prisma.$transaction([ ... ])` used in `src/app/api/judge/scores/route.ts` seamlessly translates from SQLite `BEGIN IMMEDIATE` to PostgreSQL ACID transactions with snapshot isolation.
+
+---
+
+## 5. Tier 4 (T4) Stretch Architecture & Extensibility
+
+The Tier 4 stretch surface expands OmniJudge into an extensible, API-first platform without compromising offline resilience or T1/T2 integrity:
+
+### 5.1 Embeddable Gallery Widget Architecture (`/embed/projects`)
+- **Isolation Layout:** Implements an independent layout boundary (`src/app/embed/layout.tsx`) stripping navigation bars, breadcrumbs, and footers for seamless iframe embedding.
+- **Frame Headers & CSP:** `next.config.mjs` applies permissive `frame-ancestors *` and open CORS access specifically scoped to `/embed/*`, while maintaining strict clickjacking defenses on administrative and judging routes.
+- **Client-Side Responsiveness:** `EmbedProjectsClient` provides instant keyword search and category pill filtering rendered entirely via client-side state without external network calls.
+
+### 5.2 Cryptographically Signed Judge Certificates (`src/lib/certificates.ts`)
+- **Canonical Payload Serialization:** Constructs a deterministic JSON object (`judgeId`, `judgeName`, `tracks`, `reviewsCompleted`, `event`, `issuedAt`) sorted deterministically.
+- **HMAC-SHA256 Signing:** Signs the canonical payload using `crypto.createHmac('sha256', secret)` with timing-safe equality comparison (`crypto.timingSafeEqual`) to prevent timing side-channel attacks.
+- **Flexible Token Parsing:** The `/verify` portal and `/api/judge/certificate` handler accept Base64URL tokens, direct URL query links (`?record=...`), and raw JSON envelopes.
+
+### 5.3 Real-Time Webhooks Engine (`src/lib/webhooks.ts`)
+- **Non-Blocking Dispatch:** Webhook events (`score.submitted`, `vote.cast`, `results.unsealed`) are triggered asynchronously without blocking client HTTP request/response lifecycles.
+- **HMAC Signature Headers:** Every outgoing payload is signed with the subscriber's pre-shared secret and delivered with `X-OmniJudge-Signature-256` and `X-OmniJudge-Signature` hex headers.
+- **Circuit Protection:** Built-in `AbortController` timeout (4,000ms) prevents slow or unresponsive webhook subscribers from hanging worker threads.
+
+### 5.4 Bulk Fixture Import & Export (`/api/export.json` & `/api/import`)
+- **Full Platform Backup:** `GET /api/export.json` exports a complete, self-contained JSON snapshot including tracks, teams, projects, criteria, scores, and calculated MAD-normalized standings.
+- **Atomic Ingest:** `POST /api/import` accepts platform backups or official `fixtures.json` payloads, executing bulk upserts inside an atomic `prisma.$transaction` with Zod schema validation.
+
+### 5.5 OpenAPI 3.1 & Interactive Explorer (`/api-docs` & `/api/openapi.json`)
+- **Upstream OpenAPI 3.1.0 Specification:** Self-contained JSON schema at `/api/openapi.json` accurately documenting all 12 platform endpoints, path parameters, query contracts, and RFC status codes.
+- **Zero-Dependency Dark Explorer:** Built using native React Server Components and Lucide icons without bulky external Swagger UI or CDN dependencies.

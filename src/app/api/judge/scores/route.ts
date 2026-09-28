@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/auth';
+import { dispatchWebhookEvent } from '@/lib/webhooks';
 
 export const dynamic = 'force-dynamic';
 
@@ -282,6 +283,15 @@ export async function POST(req: NextRequest) {
       },
     });
   });
+
+  // Asynchronously dispatch webhook event (non-blocking)
+  dispatchWebhookEvent('score.submitted', {
+    judgeId: session.id,
+    projectId: data.projectId,
+    trackId: project.trackId,
+    scoresCount: data.scores.length,
+    timestamp: new Date().toISOString(),
+  }).catch(() => {});
 
   return NextResponse.json(
     { success: true, message: 'Scores submitted successfully' },

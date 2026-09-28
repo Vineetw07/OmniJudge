@@ -16,6 +16,9 @@ import {
   AlertCircle,
   CheckCircle2,
   LogIn,
+  Code2,
+  Copy,
+  Check,
 } from 'lucide-react';
 import Link from 'next/link';
 import type { Prisma } from '@prisma/client';
@@ -148,6 +151,10 @@ export function ProjectsClient({
   );
   const [activeCommentProject, setActiveCommentProject] =
     useState<ProjectWithRelations | null>(null);
+
+  // Embed Modal state
+  const [showEmbedModal, setShowEmbedModal] = useState(false);
+  const [embedCopied, setEmbedCopied] = useState(false);
 
   // Toast / notification banner state
   const [notification, setNotification] = useState<{
@@ -543,6 +550,16 @@ export function ProjectsClient({
               Showing <span className="font-semibold text-white">{sortedProjects.length}</span> of{' '}
               {initialProjects.length}
             </div>
+
+            <button
+              type="button"
+              onClick={() => setShowEmbedModal(true)}
+              title="Get embeddable gallery widget snippet"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 hover:bg-cyan-500/20 hover:text-cyan-200 transition-all shadow-[0_0_12px_rgba(56,189,248,0.15)]"
+            >
+              <Code2 className="size-3.5 text-cyan-400" />
+              <span>Embed Gallery</span>
+            </button>
           </div>
         </div>
       </div>
@@ -734,6 +751,82 @@ export function ProjectsClient({
         currentUserRole={currentUserRole}
         onCommentCountChange={handleCommentCountChange}
       />
+
+      {/* Embed Gallery Modal */}
+      {showEmbedModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in-0 duration-200">
+          <div className="w-full max-w-lg rounded-2xl border border-white/10 bg-[#0d1117] p-6 shadow-2xl relative text-left">
+            <button
+              onClick={() => setShowEmbedModal(false)}
+              className="absolute right-4 top-4 p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+              aria-label="Close dialog"
+            >
+              <X className="size-5" />
+            </button>
+
+            <div className="flex items-center gap-2.5 mb-2">
+              <div className="size-9 rounded-xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400 shadow-[0_0_15px_rgba(56,189,248,0.2)]">
+                <Code2 className="size-4.5" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-white tracking-tight">Embed Project Gallery</h3>
+                <span className="text-[11px] text-cyan-400 font-mono">T4 STRETCH CAPABILITY</span>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-400 mb-4 leading-relaxed">
+              Embed a distraction-free, responsive gallery widget onto your hackathon landing page, partner portal, or blog. The widget is iframe-optimized with live search and track filtering.
+            </p>
+
+            <div className="space-y-3">
+              <label className="text-xs font-mono text-slate-300 block">
+                HTML Embed Code:
+              </label>
+              <div className="relative">
+                <pre className="p-3.5 rounded-xl bg-black/70 border border-white/10 font-mono text-xs text-cyan-300 overflow-x-auto whitespace-pre-wrap break-all select-all">
+                  {`<iframe src="http://localhost:8080/embed/projects" width="100%" height="700px" frameborder="0"></iframe>`}
+                </pre>
+              </div>
+
+              <div className="flex items-center justify-between pt-2">
+                <a
+                  href="/embed/projects"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-xs text-cyan-400 hover:text-cyan-300 transition-colors"
+                >
+                  <ExternalLink className="size-3.5" />
+                  <span>Preview Live Widget</span>
+                </a>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(
+                      '<iframe src="http://localhost:8080/embed/projects" width="100%" height="700px" frameborder="0"></iframe>'
+                    );
+                    setEmbedCopied(true);
+                    setTimeout(() => setEmbedCopied(false), 2000);
+                  }}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-cyan-500 hover:bg-cyan-400 text-slate-950 shadow-[0_0_20px_rgba(56,189,248,0.3)] transition-all"
+                >
+                  {embedCopied ? (
+                    <>
+                      <Check className="size-3.5" />
+                      <span>Copied to Clipboard!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="size-3.5" />
+                      <span>Copy Embed Code</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

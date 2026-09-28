@@ -163,3 +163,12 @@ model Comment {
   @@index([userId])
 }
 
+model WebhookSubscription {
+  id        String   @id @default(cuid())
+  url       String
+  secret    String   // Secret used for HMAC-SHA256 signature
+  events    String   // Comma-separated: "score.submitted,vote.cast,results.unsealed"
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+}
+

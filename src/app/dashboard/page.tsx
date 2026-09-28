@@ -74,6 +74,7 @@ export default async function DashboardPage() {
     uniqueCommunityVoters,
     topCommunityFavorites,
     eventState,
+    webhooks,
   ] = await Promise.all([
     prisma.project.findMany({
       include: {
@@ -113,6 +114,9 @@ export default async function DashboardPage() {
     }),
     prisma.event.findFirst({
       select: { votingOpen: true, resultsPublic: true },
+    }),
+    prisma.webhookSubscription.findMany({
+      orderBy: { createdAt: 'desc' },
     }),
   ]);
 
@@ -357,6 +361,13 @@ export default async function DashboardPage() {
       judgeProgress={judgeProgress}
       leaderboard={leaderboard}
       recentAuditLogs={recentAuditLogs}
+      initialWebhooks={webhooks.map((w) => ({
+        id: w.id,
+        url: w.url,
+        events: w.events,
+        isActive: w.isActive,
+        createdAt: w.createdAt.toISOString(),
+      }))}
     />
   );
 }

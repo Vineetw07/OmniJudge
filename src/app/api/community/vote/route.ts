@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/auth';
+import { dispatchWebhookEvent } from '@/lib/webhooks';
 
 export const dynamic = 'force-dynamic';
 
@@ -202,6 +203,13 @@ export async function POST(req: NextRequest) {
         }),
       ]);
 
+      dispatchWebhookEvent('vote.cast', {
+        userId: session.id,
+        projectId,
+        hasVoted: false,
+        timestamp: new Date().toISOString(),
+      }).catch(() => {});
+
       return NextResponse.json({
         success: true,
         hasVoted: false,
@@ -224,6 +232,13 @@ export async function POST(req: NextRequest) {
           },
         }),
       ]);
+
+      dispatchWebhookEvent('vote.cast', {
+        userId: session.id,
+        projectId,
+        hasVoted: true,
+        timestamp: new Date().toISOString(),
+      }).catch(() => {});
 
       return NextResponse.json({
         success: true,

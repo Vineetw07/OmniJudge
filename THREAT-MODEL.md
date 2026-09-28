@@ -109,6 +109,16 @@
 | **D-2** | **CSV export abuse** | Attacker hammers `GET /api/export.csv` to trigger expensive aggregation | Organizer-only RBAC (`403` for all others); `Cache-Control: no-store` — add reverse proxy rate limit for production | Partial |
 | **D-3** | **DB fill via vote spam** | Attacker creates many accounts and casts votes | Requires valid session per vote; `@@unique` prevents duplicate rows | ✅ |
 
+### 3.6 Tier 4 (T4) Stretch Attack Surface & Defense Matrix
+
+| ID | Threat | Attack Vector | Defense | HTTP Status | Verified |
+|---|---|---|---|---|---|
+| **T4-1** | **Certificate Forgery / Payload Tampering** | Attacker modifies payload in `?record=<token>` to falsify judge credentials | Canonical JSON HMAC-SHA256 signature verification via `crypto.timingSafeEqual` in `src/lib/certificates.ts` | Displays Invalid / Tampered status | ✅ 16/16 Unit Tests |
+| **T4-2** | **Webhook Secret Exfiltration** | Attacker reads webhook subscription list to steal HMAC signing secret | Secret masked as `whsec_****...` on all `GET /api/webhooks` responses | `200` with masked string | ✅ Unit & Integration tested |
+| **T4-3** | **SSRF / Slowloris Webhook Exhaustion** | Attacker registers unreachable, malicious, or hanging subscriber URL | Asynchronous, detached event loop execution + strict 4,000ms `AbortController` timeout | Safe dispatch without main thread blocking | ✅ Integration tested |
+| **T4-4** | **Clickjacking via Iframe Embedding** | Attacker embeds admin dashboard or judging cockpit in malicious iframe | Next.js CSP `frame-ancestors 'none'` on admin routes; open `frame-ancestors *` restricted strictly to `/embed/*` | Browser frame block on sensitive routes | ✅ Header verified |
+| **T4-5** | **Bulk Import Ingestion Poisoning** | Malformed, oversized, or schema-violating JSON sent to `POST /api/import` | Strict Zod validation (`BulkImportPayloadSchema`) + atomic `prisma.$transaction` rollback on any validation failure | `400 Bad Request` | ✅ Adversarial tested |
+
 ---
 
 ## 4. What Is Explicitly Out of Scope (Single-Node Evaluation Context)
@@ -137,3 +147,7 @@ The following threats are real in production multi-tenant deployments but delibe
 | **DB-Level Uniqueness** | `CommunityVote` model | `@@unique([projectId, userId])` — no double votes even under concurrent requests |
 | **XSS Sanitization** | `POST /api/community/comments` | HTML stripped server-side before storage, not client-side |
 | **Rate Limit** | `POST /api/community/comments` | DB-backed 10s sliding window — not an in-memory counter |
+| **Cryptographic Anti-Tamper** | `/verify` & `src/lib/certificates.ts` | HMAC-SHA256 with timing-safe equality prevents credential forgery |
+| **Webhook Secret Masking** | `GET /api/webhooks` | Pre-shared HMAC secrets are never exposed in plaintext over the wire |
+| **Non-Blocking Dispatch** | `src/lib/webhooks.ts` | 4-second timeout and detached event loop isolate external subscriber latency |
+| **Transactional Ingest** | `POST /api/import` | Zod runtime schema boundaries prevent database corruption during bulk operations |

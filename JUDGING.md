@@ -226,6 +226,14 @@ npx tsx tests/test_t2_exhaustive_audit.ts
 # 3. Full Adversarial Edge-Case Suite (47 security & mathematical assertions):
 python tests/test_phase3_adversarial.py
 # Expected: 47 / 47 PASS
+
+# 4. Tier 4 Signed Cryptographic Certificates Suite (16 assertions):
+npx tsx tests/test_t4_certificates.ts
+# Expected: ALL 16 CRYPTOGRAPHIC CERTIFICATE AUDIT ASSERTIONS PASSING (100%)
+
+# 5. Tier 4 Webhooks & Bulk Import Engine Suite (11 assertions):
+npx tsx tests/test_t4_webhooks_and_import.ts
+# Expected: ALL 11 WEBHOOK & BULK IMPORT AUDIT ASSERTIONS PASSING (100%)
 ```
 
 ### 7.2 Live HTTP API Audit (curl & PowerShell)
@@ -254,6 +262,13 @@ curl -s -H "Cookie: session=org_seed_token_2026" "http://localhost:8080/api/expo
 # Output:
 # project_id,project_title,track,raw_score,normalized_score,rank
 # prj_01,"Glass Signal","Developer Tools",...
+
+# Test F: Generate signed judge evaluation credential (T4) -> 200 OK
+curl -s -H "Cookie: session=jdg_a_seed_token_2026" "http://localhost:8080/api/judge/certificate"
+
+# Test G: Export full platform JSON state backup (Organizer, T4) -> 200 OK
+curl -s -o /dev/null -w "%{http_code}\n" -H "Cookie: session=org_seed_token_2026" "http://localhost:8080/api/export.json"
+# Output: 200
 ```
 
 ### 7.3 Code Inspection Index for Judges

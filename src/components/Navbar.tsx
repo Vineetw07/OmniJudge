@@ -10,6 +10,8 @@ const NAV_ITEMS = [
   { href: '/projects', label: 'Projects' },
   { href: '/judge', label: 'Judge' },
   { href: '/dashboard', label: 'Dashboard' },
+  { href: '/verify', label: 'Verify' },
+  { href: '/api-docs', label: 'API Docs' },
 ];
 
 function GithubIcon(props: React.SVGProps<SVGSVGElement>) {
@@ -43,6 +45,10 @@ export interface NavbarProps {
 
 export function Navbar({ currentUser }: NavbarProps) {
   const pathname = usePathname();
+
+  if (pathname?.startsWith('/embed')) {
+    return null;
+  }
 
   return (
     <header className="sticky top-0 z-50 backdrop-blur-md bg-white/[0.04] border-b border-white/[0.06] transition-colors">
