@@ -153,8 +153,8 @@ Our implementation (`src/lib/normalization.ts`) explicitly tests for $\text{MAD}
 
 ## 📚 Technical Documentation Directory
 
-- 📐 **[ARCHITECTURE.md](ARCHITECTURE.md):** Deep-dive into Next.js App Router, offline resilience, and PostgreSQL migration guide.
-- 🗄️ **[DATA-MODEL.md](DATA-MODEL.md):** Detailed breakdown of all 11 Prisma models, Mermaid ER diagrams, and fixture mappings.
-- 📊 **[JUDGING.md](JUDGING.md):** Mathematical derivation of Modified Z-Score / MAD normalization and RFC 4180 CSV export specifications.
-- 📄 **[acceptance-report.txt](acceptance-report.txt):** Raw terminal output of the 7/7 passing acceptance test run.
+- 📐 **[ARCHITECTURE.md](ARCHITECTURE.md):** Deep-dive into Next.js App Router, offline resilience, RBAC parameter guards, and PostgreSQL migration guide.
+- 🗄️ **[DATA-MODEL.md](DATA-MODEL.md):** Detailed breakdown of all 11 Prisma models, Mermaid ER diagrams, fixture import mapping, and CSV/JSON export pathways.
+- 📊 **[JUDGING.md](JUDGING.md):** Judge assignment strategy (incomplete block design), scoring mathematics, Modified Z-Score (MAD) normalization, zero-variance defense, and RFC 4180 CSV export specifications.
+- 📄 **[acceptance-report.txt](acceptance-report.txt):** Raw terminal output of the 7/7 passing acceptance test run (tier by tier).
 - ⚖️ **[LICENSE](LICENSE):** Standard MIT License.

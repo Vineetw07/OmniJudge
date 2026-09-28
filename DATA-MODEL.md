@@ -291,3 +291,50 @@ await prisma.$transaction(async (tx) => {
 });
 ```
 This guarantees ACID atomicity: an evaluation either fully persists with its accompanying audit trail, or fails completely without corrupting aggregate statistics.
+
+---
+
+## 5. Data Export Paths & Schema Transformations
+
+DOGFOOD 2026 provides structured export pathways translating relational models into standardized deliverables:
+
+### 5.1 RFC 4180 CSV Export Pipeline (`GET /api/export.csv`)
+Restricted strictly to the `organizer` role. It joins `Project`, `Track`, `Score`, and `RubricCriterion`, transforms them through the normalization engine, and serializes to CSV:
+
+```
+[ Relational Database (Prisma) ]
+  ├─ Project (id, title)
+  ├─ Track (name)
+  ├─ RubricCriterion (id, weight)
+  └─ Score (judgeId, projectId, criterionId, value)
+                 │
+                 ▼
+[ Transformation & Normalization Pipeline ]
+  1. Rubric Weighting:  Composite_Raw = Σ (Value_c × Weight_c) / Σ Weight_c
+  2. MAD Normalization: Modified_Z = 0.6745 × (Composite_Raw - Median) / MAD
+  3. Cross-Judge Mean:  Project_Avg_Raw = Mean(Composite_Raw)
+                        Project_Avg_Norm = Mean(Modified_Z)
+  4. Ranking Sort:      Sort by NormalizedScore DESC, then RawScore DESC, then ID ASC
+                 │
+                 ▼
+[ RFC 4180 CSV Output Stream ]
+  MIME: text/csv; charset=utf-8
+  Content-Disposition: attachment; filename="dogfood_scores.csv"
+```
+
+#### CSV Column Mapping Schema
+| CSV Column Name | Source Prisma Model / Field | Transformation / Serialization Rule |
+| :--- | :--- | :--- |
+| `project_id` | `Project.id` | RFC 4180 quoted string escape |
+| `project_title` | `Project.title` | RFC 4180 quoted string escape |
+| `track` | `Track.name` (via `Project.trackId`) | Defaults to `'General'` if unassigned; quoted |
+| `raw_score` | Derived from `Score.value` | Weighted arithmetic mean, fixed to 2 decimals (`.toFixed(2)`) |
+| `normalized_score` | Derived via `normaliseAllJudges()` | Cross-judge average Modified Z-score, fixed to 4 decimals (`.toFixed(4)`) |
+| `rank` | Computed ordinal rank | 1-based sequential integer ($1, 2, 3, ...$) |
+
+### 5.2 JSON Real-Time Analytics Export (`GET /dashboard`)
+Used by organizer Server Components to stream live data:
+- **Judge Completion Rates:** Aggregates `Score.count` grouped by `judgeId` against `Project.count` for assigned tracks.
+- **Audit Stream:** Chronological feed of `AuditLog` rows sorted by `createdAt DESC`.
+- **Live Leaderboard:** Real-time normalized ranking updating with each submitted evaluation.
+

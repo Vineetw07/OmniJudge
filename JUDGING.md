@@ -12,22 +12,44 @@ In multi-track hackathons evaluated by distributed panels of volunteer judges, r
 2. **Variance Compression (Discrimination Failure):** Some judges score every project within a narrow band (e.g. 4.0 to 4.5), while others utilize the full 1.0 to 5.0 scale.
 3. **Incomplete Block Designs:** Judges cannot evaluate all projects; they only score a subset within their assigned track. Cross-judge variance cannot be balanced out naturally by large-sample law of averages.
 
-To solve this, DOGFOOD 2026 implements **Modified Z-Score Normalization** using the **Median Absolute Deviation (MAD)**.
+To solve this, DOGFOOD 2026 implements a dual-defense system: **Track-Level Assignment Architecture** combined with **Modified Z-Score Normalization** via **Median Absolute Deviation (MAD)**.
 
 ---
 
-## 2. Mathematical Foundation: Modified Z-Score via MAD
+## 2. Judge Assignment Strategy: Incomplete Block Design & Defense
 
-### 2.1 Why Not Standard Z-Score?
-The classical standard score (Z-score) is defined as:
-$$z_i = \frac{x_i - \bar{x}}{s}$$
-where $\bar{x} = \frac{1}{N} \sum x_i$ is the sample mean and $s = \sqrt{\frac{1}{N-1} \sum (x_i - \bar{x})^2}$ is the sample standard deviation.
+### 2.1 The Need for Incomplete Block Design
+In a hackathon with $P = 40$ projects, $C = 4$ rubric criteria, and $J = 30$ judges, requiring every judge to evaluate every project would demand:
+$$\text{Evaluations} = 40 \times 4 = 160 \text{ criterion ratings per judge}$$
 
-Standard Z-Score exhibits two fatal flaws in hackathons:
-1. **Outlier Sensitivity:** Both the mean $\bar{x}$ and standard deviation $s$ have an asymptotic breakdown point of $0\%$. A single anomalous score drastically skews the baseline.
-2. **Zero-Variance Division-by-Zero:** If a judge awards identical scores to all projects, the sample variance $s = 0$. Computing $z_i$ results in $\frac{0}{0} = \text{NaN}$, crashing unhardened leaderboards and CSV export pipelines.
+This causes acute reviewer fatigue, rushed evaluations, and high variance decay over time. 
 
-### 2.2 The Modified Z-Score Formula
+DOGFOOD 2026 adopts an **Incomplete Block Design (IBD)**:
+1. **Domain Track Partitioning:** Projects are partitioned into distinct Tracks (`trk_dev_tools`, `trk_ai_agents`, `trk_infra`, `trk_consumer`).
+2. **Specialized Panel Assignment:** Judges are assigned to 1–2 tracks based on domain expertise via explicit `JudgeAssignment` records.
+3. **Load Capping:** Each judge evaluates a manageable cohort of 8–12 projects, ensuring deep code review, repo inspection, and high-fidelity rubric scoring.
+
+### 2.2 Server-Enforced Jurisdiction & Conflict Defense
+Assignment is not merely a UI suggestion; it is a **cryptographic security boundary**:
+- **Jurisdiction Enforcement:** When `POST /api/judge/scores` is invoked, the database verifies that `JudgeAssignment` exists for `(userId, project.trackId)`. If a judge attempts to score a project outside their assigned track, the API rejects the request with `403 Forbidden`.
+- **Conflict of Interest Avoidance:** Judges who are registered as members of a submitting team (`TeamMember.userId == session.userId`) are barred from evaluating their own team's project.
+- **Peer Isolation:** Judges can never view evaluations or composite scores submitted by peer judges, preventing anchoring bias and social conformity cascades.
+
+---
+
+## 3. Mathematical Foundation: Modified Z-Score via MAD
+
+### 3.1 Why Competing Normalization Methods Fail (The Defense)
+
+| Normalization Method | Formula | Fatal Flaw in Hackathons | DOGFOOD Verdict |
+| :--- | :--- | :--- | :--- |
+| **Raw Arithmetic Mean** | $\bar{x} = \frac{1}{K}\sum x_k$ | Vulnerable to "hawks vs. doves" calibration skew. Submissions assigned strict judges are unfairly penalized. | ❌ Rejected |
+| **Min-Max Scaling** | $\frac{x_i - \min}{\max - \min}$ | Extreme outlier scores collapse the scale for all intermediate projects; breaks down if $\min = \max$. | ❌ Rejected |
+| **Classical Z-Score** | $z_i = \frac{x_i - \bar{x}}{s}$ | Sample standard deviation $s$ has a 0% breakdown point. **Crashes with `NaN`** when variance is zero ($s = 0$). | ❌ Rejected |
+| **Borda Count / Elo** | Pairwise ranking | Requires all-pairs or dense bipartite connectivity; fails on sparse, disjoint incomplete block designs. | ❌ Rejected |
+| **Modified Z-Score (MAD)** | $0.6745 \cdot \frac{x_i - \tilde{x}}{\text{MAD}}$ | **50% breakdown point robustness**. Accommodates outliers, scales identical to Gaussian, handles zero-variance gracefully. | ✅ **Selected & Defended** |
+
+### 3.2 The Modified Z-Score Formula
 To provide high breakdown point (50%) robustness against outliers and eliminate variance distortion, DOGFOOD 2026 uses the Boris Iglewicz and David Hoaglin formulation:
 
 $$\text{modified\_z}_i = \frac{0.6745 \cdot (x_i - \tilde{x})}{\text{MAD}}$$
@@ -54,7 +76,7 @@ Multiplying $(x_i - \tilde{x})$ by $0.6745 / \text{MAD}$ (or dividing by $1.4826
 
 ---
 
-## 3. Deliberate Zero-Variance Fixture Torture Test (`jdg_30`)
+## 4. Deliberate Zero-Variance Fixture Torture Test (`jdg_30`)
 
 ### The Trap in `fixtures.json`
 The official DOGFOOD evaluation dataset (`Hack_docs/fixtures.json`) includes an adversarial test case:
@@ -87,7 +109,7 @@ return scores.map((s) => (0.6745 * (s - median)) / mad);
 
 ---
 
-## 4. End-to-End Scoring & Ranking Pipeline
+## 5. End-to-End Scoring & Ranking Pipeline
 
 The complete aggregation sequence executed in `src/app/api/export.csv/route.ts` and `/dashboard` proceeds through 6 stages:
 
@@ -124,7 +146,7 @@ The complete aggregation sequence executed in `src/app/api/export.csv/route.ts` 
 
 ---
 
-## 5. CSV Export Specification (RFC 4180 Compliance)
+## 6. CSV Export Specification (RFC 4180 Compliance)
 
 The CSV export endpoint at `/api/export.csv` strictly fulfills all acceptance criteria mandated by `.dogfood.toml` and `run.py`.
 
