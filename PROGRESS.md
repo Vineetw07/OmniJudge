@@ -5,10 +5,10 @@
 
 ---
 
-Last updated: 2026-09-28T16:50:00+05:30
-Current phase: Phase 5 complete -> Ready for Phase 6 (Community Voting) or Code Freeze
-Last completed task: Phase 5 UI Polish + Freeze Rehearsal (7/7 PASS green)
-Next task: Code Freeze / Submission or Phase 6 (Community Voting)
+Last updated: 2026-09-28T18:15:00+05:30
+Current phase: Phase 6 - M1 completed -> Ready for M2
+Last completed task: Phase 6 M1: Schema migration for CommunityVote, Comment, and Event voting lifecycle flags
+Next task: Phase 6 M2: Anti-Abuse Protected APIs (POST /api/community/vote, GET /api/community/vote, /api/community/comments)
 Known blockers: Docker not yet tested end-to-end (docker CLI not in PATH at time of Phase 1 — may need PATH fix or Docker Desktop CLI plugin install)
 Checker state: T1 PASS, T2 PASS (7/7 PASS verified green)
 Docker state: Dockerfile + docker-compose.yml written, entrypoint tested and verified
@@ -106,8 +106,13 @@ Select-String -Path "d:\TP\Hackathon\DogFood\src\*" -Pattern "RESUME_HERE|TODO|F
 - [x] Verification Triad: `npm run typecheck` (0 errors), `npm run lint` (0 errors), `npm run build` (success)
 - [x] Freeze Rehearsal: `python Hack_docs/run.py .dogfood.toml` (7/7 PASS verified green)
 
-### Phase 6 — T3 Community Voting (Full-Stack Product Engineer) [IF TIME PERMITS]
-- [ ] Not started
+### Phase 6 — T3 Community Voting & Anti-Abuse Integrity (Full-Stack Product Engineer)
+- [x] M1: Data Model & Schema Migration (`prisma/schema.prisma`): `CommunityVote`, `Comment`, and `Event` (`votingOpen`, `resultsPublic`), `db push` applied safely, `src/lib/seed.ts` updated with `TeamMember` mapping for `user_prt_01` (tm_01), seed idempotency verified, 7/7 baseline preserved
+- [ ] M2: Anti-Abuse Protected APIs (`/api/community/vote`, `/api/community/comments`): session auth, self-vote block, sealed results redaction, rate limiting, and audit logging
+- [ ] M3: Ballot Randomization & Voting UX (`/projects` & ProjectsClient): Fisher-Yates per-session order, glass upvote button, luminous emerald glow, sealed results shield badge
+- [ ] M4: Project Feedback & Comment Stream: collapsible obsidian drawer, role badges, sanitized comments
+- [ ] M5: Organizer Governance in Dashboard (`/dashboard`): community voting control card, stats, seal/unseal toggle, audit trail filtering
+- [ ] M6: Specification Docs & Full Integrity Sign-off (`COMMUNITY_INTEGRITY.md`): threat model, anti-bias analysis, sybil resistance, full verification triad
 
 ---
 
@@ -131,6 +136,7 @@ participant  Cookie: session=prt_seed_token_2026
 | 2026-09-27T15:38:00+05:30 | PASS | PASS | PASS | PASS | PASS | PASS | PASS | T1 PASS, T2 PASS |
 | 2026-09-28T15:56:00+05:30 | PASS | PASS | PASS | PASS | PASS | PASS | PASS | T1 PASS, T2 PASS (7/7) |
 | 2026-09-28T16:50:00+05:30 | PASS | PASS | PASS | PASS | PASS | PASS | PASS | T1 PASS, T2 PASS (7/7) |
+| 2026-09-28T18:14:00+05:30 | PASS | PASS | PASS | PASS | PASS | PASS | PASS | T1 PASS, T2 PASS (7/7) |
 
 ---
 
@@ -155,6 +161,7 @@ participant  Cookie: session=prt_seed_token_2026
 | 2026-09-28T16:50:00+05:30 | Gemini | Worker M6 | Phase 5 UI Polish & Freeze Rehearsal: verified Triad (typecheck 0 errors, lint 0 errors, build success), verified acceptance checker (7/7 PASS), verified raw SSR HTML titles and CSV export | All 7/7 PASS green, Triad Clean |
 | 2026-09-28T17:20:00+05:30 | Gemini | Senior UI/UX Eng | Resolved root hero page (Midnight Obsidian hero & quick-access terminal), enforced strict role separation on /judge for organizers, added active session pill and logout endpoint | All 7/7 PASS green, Triad Clean |
 | 2026-09-28T17:30:00+05:30 | Gemini | Senior UI/UX Eng | Expanded widescreen container ratio across all views from max-w-7xl (1280px) to max-w-[1560px] (~81% ratio) | All 7/7 PASS green, Triad Clean |
+| 2026-09-28T18:15:00+05:30 | Gemini | Worker P6-M1 | Phase 6 M1 complete: DB backup, CommunityVote + Comment + Event lifecycle flags schema migration, seed.ts updated with user_prt_01 team link, typecheck 0 errors, lint 0 errors, 7/7 checker PASS | M1 Complete, Ready for M2 |
 
 ---
 

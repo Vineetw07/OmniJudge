@@ -22,6 +22,8 @@ model User {
   judgeAssignments JudgeAssignment[]
   scores           Score[]
   auditLogs        AuditLog[]
+  communityVotes   CommunityVote[]
+  comments         Comment[]
 }
 
 model Session {
@@ -36,6 +38,8 @@ model Event {
   id               String   @id
   name             String
   submissionsClose DateTime
+  votingOpen       Boolean  @default(true)
+  resultsPublic    Boolean  @default(false)
   createdAt        DateTime @default(now())
 
   tracks   Track[]
@@ -82,7 +86,9 @@ model Project {
   team   Team    @relation(fields: [teamId], references: [id])
   track  Track   @relation(fields: [trackId], references: [id])
   event  Event   @relation(fields: [eventId], references: [id])
-  scores Score[]
+  scores         Score[]
+  communityVotes CommunityVote[]
+  comments       Comment[]
 }
 
 model RubricCriterion {
@@ -125,3 +131,34 @@ model AuditLog {
 
   user User @relation(fields: [userId], references: [id])
 }
+
+model CommunityVote {
+  id        String   @id @default(cuid())
+  projectId String
+  userId    String
+  createdAt DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId])
+  @@index([projectId])
+  @@index([userId])
+}
+
+model Comment {
+  id         String   @id @default(cuid())
+  projectId  String
+  userId     String
+  authorName String
+  content    String
+  createdAt  DateTime @default(now())
+  isFlagged  Boolean  @default(false)
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@index([userId])
+}
+

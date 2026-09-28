@@ -80,6 +80,8 @@ async function main() {
       id: fixtures.event.id,
       name: fixtures.event.name,
       submissionsClose: new Date(fixtures.event.submissions_close),
+      votingOpen: true,
+      resultsPublic: false,
     },
   });
 
@@ -244,6 +246,13 @@ async function main() {
       data: { userId: 'user_jdg_b_01', trackId: 'trk_02' },
     });
   }
+
+  // Assign participant to tm_01 for deterministic self-vote defense testing
+  await prisma.teamMember.upsert({
+    where: { userId: 'user_prt_01' },
+    update: { teamId: 'tm_01' },
+    create: { userId: 'user_prt_01', teamId: 'tm_01' },
+  });
 
   // ---------------------------------------------------------------------------
   // 9. Print session tokens (user copies these into .dogfood.toml)
