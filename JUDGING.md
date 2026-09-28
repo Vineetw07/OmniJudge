@@ -60,7 +60,7 @@ Where:
 - $\text{MAD}$ is the **Median Absolute Deviation**, defined as:
   $$\text{MAD} = \text{median}\left( |x_i - \tilde{x}| \right)$$
 
-### 2.3 Mathematical Derivation of the Constant $0.6745$
+### 3.3 Mathematical Derivation of the Constant $0.6745$
 The scaling constant $0.6745$ is derived from the standard normal cumulative distribution function $\Phi(z)$.
 
 For a standard normal distribution $\mathcal{N}(0, 1)$, the median is $0$. The MAD is the value $\text{mad}$ such that:

@@ -13,6 +13,8 @@ erDiagram
     User ||--o{ JudgeAssignment : "assigned to"
     User ||--o{ Score : "submits"
     User ||--o{ AuditLog : "triggers"
+    User ||--o{ CommunityVote : "casts"
+    User ||--o{ Comment : "posts"
 
     Team ||--|{ TeamMember : "contains"
     Team ||--o{ Project : "submits"
@@ -27,8 +29,82 @@ erDiagram
     Project ||--o{ CommunityVote : "receives"
     Project ||--o{ Comment : "has"
     RubricCriterion ||--o{ Score : "scored against"
-    User ||--o{ CommunityVote : "casts"
-    User ||--o{ Comment : "posts"
+
+    User {
+        string id PK "cuid()"
+        string email UK
+        string name
+        string role "visitor|participant|judge|organizer|admin"
+        datetime createdAt
+    }
+
+    Session {
+        string id PK "token or UUID"
+        string userId FK
+        datetime createdAt
+        datetime expiresAt
+    }
+
+    Event {
+        string id PK
+        string name
+        datetime submissionsClose
+        boolean votingOpen "default false"
+        boolean resultsPublic "default false"
+        datetime createdAt
+    }
+
+    Track {
+        string id PK
+        string name
+        string eventId FK
+    }
+
+    Team {
+        string id PK
+        string name
+    }
+
+    TeamMember {
+        string id PK "cuid()"
+        string userId FK "Unique 1-1"
+        string teamId FK
+    }
+
+    Project {
+        string id PK
+        string teamId FK
+        string trackId FK
+        string eventId FK
+        string title
+        string summary
+        string repoUrl
+        datetime submittedAt
+        boolean isDraft
+    }
+
+    RubricCriterion {
+        string id PK "cuid()"
+        string name
+        float weight "Default 1.0"
+        int maxScore "Default 5"
+    }
+
+    JudgeAssignment {
+        string id PK "cuid()"
+        string userId FK
+        string trackId FK
+    }
+
+    Score {
+        string id PK "cuid()"
+        string judgeId FK
+        string projectId FK
+        string criterionId FK
+        float value "0.0 - 5.0"
+        string comment
+        datetime submittedAt
+    }
 
     CommunityVote {
         string id PK "cuid()"

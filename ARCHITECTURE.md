@@ -20,6 +20,9 @@ DOGFOOD 2026 is architected as an offline-first, high-resilience, single-tier fu
 │   │   - /judge (Scoring Portal)        - /api/projects             │   │
 │   │   - /dashboard (Organizer KPIs)    - /api/judge/scores         │   │
 │   │                                    - /api/export.csv           │   │
+│   │                                    - /api/community/vote       │   │
+│   │                                    - /api/community/comments   │   │
+│   │                                    - /api/community/settings   │   │
 │   └───────────────┬────────────────────────────────┬───────────────┘   │
 │                   │                                │                   │
 │                   ▼                                ▼                   │
@@ -144,6 +147,23 @@ When a judge submits rubric scores via `POST /api/judge/scores`, data integrity 
 3. Every score is upserted.
 4. An immutable `AuditLog` entry is written with `judgeId`, `projectId`, `action: 'SUBMIT_SCORE'`, and the full JSON score delta.
 If any step fails, the entire transaction rolls back, guaranteeing zero orphaned or partial evaluations.
+
+### Community Voting RBAC Boundary *(Phase 6 — T3)*
+The community vote endpoint (`POST /api/community/vote`) adds a second RBAC enforcement layer on top of the standard session/role check:
+
+```
+  Authenticated session ──► Role permitted ──► Self-vote check
+                                                      │
+                           TeamMember.teamId ─────────┤
+                           === project.teamId?         │
+                                                      ▼
+                                             [ 403 Forbidden ]
+                                   "Team members cannot vote for
+                                    their own submission"
+```
+
+- `CommunityVote` records are protected at **database level** by `@@unique([projectId, userId])` — a second vote from the same user on the same project is rejected before the application layer.
+- `GET /api/community/vote` enforces a **sealed results invariant**: `totalVotes` is returned as `null` for all non-organizer roles while `Event.resultsPublic === false`, preventing vote-count inspection that could cause bandwagon cascading.
 
 ---
 
