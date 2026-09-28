@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from '@/lib/auth';
 import { JudgePortalClient } from './judge-portal-client';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ShieldAlert, ArrowLeft } from 'lucide-react';
 
@@ -29,26 +28,42 @@ export default async function JudgePage() {
     session.role !== 'admin'
   ) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-muted/20 p-4">
-        <Card className="max-w-md w-full border shadow-sm">
-          <CardHeader className="text-center space-y-2">
-            <div className="inline-flex items-center justify-center size-12 rounded-xl bg-destructive/10 text-destructive mx-auto">
-              <ShieldAlert className="size-6" />
+      <div className="min-h-screen flex items-center justify-center bg-[#07090e] text-slate-100 p-4 relative overflow-hidden">
+        {/* Ambient amber glow */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -top-40 left-1/2 -translate-x-1/2 w-[600px] h-[450px] bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-amber-500/10 via-amber-500/5 to-transparent blur-3xl rounded-full"
+        />
+
+        <div className="backdrop-blur-md bg-white/[0.03] border border-amber-500/20 shadow-[0_8px_32px_rgba(0,0,0,0.5)] rounded-2xl max-w-md w-full p-6 sm:p-8 relative z-10 text-center space-y-5">
+          <div className="inline-flex items-center justify-center size-14 rounded-2xl bg-amber-500/10 text-amber-400 border border-amber-500/30 shadow-[0_0_24px_rgba(245,158,11,0.2)] mx-auto">
+            <ShieldAlert className="size-7" />
+          </div>
+
+          <div className="space-y-2">
+            <div className="inline-flex items-center gap-1.5 text-[11px] font-mono uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/30">
+              Access Restricted
             </div>
-            <CardTitle className="text-xl font-bold">Access Restricted</CardTitle>
-            <CardDescription className="text-xs">
-              Your account ({session.email}) has role &ldquo;{session.role}&rdquo;. The judging console is strictly reserved for appointed judges and hackathon organizers.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex justify-center pt-2">
+            <h1 className="text-2xl font-bold tracking-tight text-white">Judge Console Locked</h1>
+            <p className="text-xs text-slate-400 leading-relaxed">
+              Your account (<span className="text-slate-200 font-mono">{session.email}</span>) has role{' '}
+              <span className="text-amber-400 font-semibold uppercase">{session.role}</span>. The judging console is strictly reserved for appointed judges and hackathon organizers.
+            </p>
+          </div>
+
+          <div className="pt-2 flex justify-center">
             <Link href="/projects">
-              <Button variant="outline" size="sm" className="flex items-center gap-1.5">
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex items-center gap-2 border-white/10 bg-white/[0.04] text-slate-200 hover:bg-white/[0.08] hover:text-white hover:border-white/20 transition-colors"
+              >
                 <ArrowLeft className="size-3.5" />
                 <span>Return to Gallery</span>
               </Button>
             </Link>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
     );
   }
