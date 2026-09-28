@@ -62,7 +62,7 @@ Select-String -Path "d:\TP\Hackathon\DogFood\src\*" -Pattern "RESUME_HERE|TODO|F
 - [x] MAD zero-variance test — `normaliseJudgeScores([3,3,3,3])` = `[0,0,0,0]` ✅
 - [x] Initial git commit pushed
 - [ ] `docker compose up` end-to-end test (run in terminal to verify container startup)
-- [x] GitHub remote added and pushed: `git@github.com:Vineetw07/dogfood-portal.git` (branch: `master`)
+- [x] GitHub remote added and pushed: `git@github.com:Vineetw07/OmniJudge.git` (branch: `master`)
 
 ### Phase 2 — T1 Core (Senior Full-Stack Engineer)
 - [x] `GET /projects` public gallery page — server-rendered HTML, NO auth required, returns 200
@@ -137,7 +137,7 @@ participant  Cookie: session=prt_seed_token_2026
 ## Known Issues / Blockers
 
 1. **Docker CLI not in PATH during Phase 1** — `docker` command not found in PowerShell at time of verification. Docker Desktop is installed and open. Fix: restart PowerShell after Docker Desktop starts, or add Docker CLI to PATH manually. Docker files are correct — just needs CLI access to test.
-2. ~~**GitHub remote not set**~~ — **RESOLVED**: Remote is `git@github.com:Vineetw07/dogfood-portal.git` (already set and pushed).
+2. ~~**GitHub remote not set**~~ — **RESOLVED**: Remote is `git@github.com:Vineetw07/OmniJudge.git` (already set and pushed).
 
 ---
 
@@ -153,6 +153,7 @@ participant  Cookie: session=prt_seed_token_2026
 | 2026-09-27T15:38:00+05:30 | Gemini | Worker Gen 2 | Verified Phase 3 adversarial suites (47/47 probes, 35/35 tests) + run.py T1/T2 (7/7 PASS) + typecheck 0 errors | All tests PASS, commit created |
 | 2026-09-28T15:56:00+05:30 | Gemini | Sr Tech Writer + QA | Phase 4 complete: verified acceptance checker (7/7 PASS), generated acceptance-report.txt, wrote README.md, ARCHITECTURE.md, DATA-MODEL.md, JUDGING.md, verified LICENSE, updated login role redirection, typecheck + lint 0 errors | All 7/7 PASS, Docs Complete |
 | 2026-09-28T16:50:00+05:30 | Gemini | Worker M6 | Phase 5 UI Polish & Freeze Rehearsal: verified Triad (typecheck 0 errors, lint 0 errors, build success), verified acceptance checker (7/7 PASS), verified raw SSR HTML titles and CSV export | All 7/7 PASS green, Triad Clean |
+| 2026-09-28T17:20:00+05:30 | Gemini | Senior UI/UX Eng | Resolved root hero page (Midnight Obsidian hero & quick-access terminal), enforced strict role separation on /judge for organizers, added active session pill and logout endpoint | All 7/7 PASS green, Triad Clean |
 
 ---
 
