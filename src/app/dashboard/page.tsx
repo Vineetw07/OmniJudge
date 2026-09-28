@@ -4,8 +4,7 @@ import Link from 'next/link';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from '@/lib/auth';
 import { normaliseAllJudges } from '@/lib/normalization';
-import { DashboardClient } from './dashboard-client';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { DashboardClient, DashboardKPIs } from './dashboard-client';
 import { Button } from '@/components/ui/button';
 import { ShieldAlert, ArrowLeft } from 'lucide-react';
 
@@ -26,26 +25,26 @@ export default async function DashboardPage() {
   // Strict RBAC: Organizer and Admin only
   if (session.role !== 'organizer' && session.role !== 'admin') {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-muted/20 p-4">
-        <Card className="max-w-md w-full border shadow-sm">
-          <CardHeader className="text-center space-y-2">
-            <div className="inline-flex items-center justify-center size-12 rounded-xl bg-destructive/10 text-destructive mx-auto">
-              <ShieldAlert className="size-6" />
-            </div>
-            <CardTitle className="text-xl font-bold">Access Forbidden</CardTitle>
-            <CardDescription className="text-xs">
-              Your account ({session.email}) has role &ldquo;{session.role}&rdquo;. The organizer dashboard and export functions are restricted strictly to Hackathon Administrators and Organizers.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex justify-center pt-2">
+      <div className="min-h-[80vh] flex items-center justify-center p-4">
+        <div className="max-w-md w-full rounded-2xl bg-[var(--glass-bg)] border border-[var(--glass-border)] backdrop-blur-md p-6 shadow-2xl space-y-6 text-center">
+          <div className="inline-flex items-center justify-center size-14 rounded-2xl bg-destructive/15 text-destructive border border-destructive/25 mx-auto">
+            <ShieldAlert className="size-7" />
+          </div>
+          <div className="space-y-2">
+            <h2 className="text-xl font-bold tracking-tight text-foreground">Access Restricted</h2>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Your account (<span className="text-foreground font-mono">{session.email}</span>) has role &ldquo;<span className="text-primary font-medium">{session.role}</span>&rdquo;. The organizer control tower and export functions are restricted strictly to Hackathon Administrators and Organizers.
+            </p>
+          </div>
+          <div className="pt-2 flex justify-center">
             <Link href="/projects">
-              <Button variant="outline" size="sm" className="flex items-center gap-1.5">
-                <ArrowLeft className="size-3.5" />
+              <Button variant="outline" size="sm" className="flex items-center gap-2 border-white/10 hover:bg-white/5">
+                <ArrowLeft className="size-4" />
                 <span>Return to Gallery</span>
               </Button>
             </Link>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
     );
   }
@@ -181,7 +180,7 @@ export default async function DashboardPage() {
     rank: idx + 1,
   }));
 
-  // 6. Compute Judge Progress
+  // 6. Compute Judge Progress & Exact 4 KPIs
   const trackProjectCountMap = new Map<string, number>();
   for (const p of projects) {
     trackProjectCountMap.set(
@@ -190,7 +189,9 @@ export default async function DashboardPage() {
     );
   }
 
-  let completedJudgesCount = 0;
+  let totalAssignedReviews = 0;
+  let completedReviews = 0;
+  let activeJudgesCount = 0;
 
   const judgeProgress = judges.map((j) => {
     const assignedTracks = j.judgeAssignments.map((a) => a.track.name);
@@ -206,10 +207,15 @@ export default async function DashboardPage() {
     const scoredProjectSet = new Set(j.scores.map((s) => s.projectId));
     const scoredCount = scoredProjectSet.size;
 
+    totalAssignedReviews += assignedCount;
+    completedReviews += scoredCount;
+    if (scoredCount > 0) {
+      activeJudgesCount++;
+    }
+
     let status: 'Completed' | 'In Progress' | 'Not Started' = 'Not Started';
     if (assignedCount > 0 && scoredCount >= assignedCount) {
       status = 'Completed';
-      completedJudgesCount++;
     } else if (scoredCount > 0) {
       status = 'In Progress';
     }
@@ -252,12 +258,19 @@ export default async function DashboardPage() {
     };
   });
 
-  const kpis = {
-    totalProjects: projects.length,
-    scoredProjects: scoredProjectIds.size,
-    totalReviews: scores.length,
+  const evaluationProgressPercent =
+    totalAssignedReviews > 0
+      ? Math.round((completedReviews / totalAssignedReviews) * 100)
+      : 0;
+  const remainingReviews = Math.max(0, totalAssignedReviews - completedReviews);
+
+  const kpis: DashboardKPIs = {
+    totalSubmissions: projects.length,
+    activeJudges: activeJudgesCount,
     totalJudges: judges.length,
-    completedJudges: completedJudgesCount,
+    evaluationProgressPercent,
+    remainingReviews,
+    totalReviews: scores.length,
   };
 
   return (
