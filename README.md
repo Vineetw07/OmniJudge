@@ -9,12 +9,13 @@
 
 | Key Dimension | Architecture & Implementation |
 | :--- | :--- |
-| **Claimed Tiers** | **T1** (Public Gallery & Deadline Engine) + **T2** (Role-Isolated Judging & Normalised CSV Export) |
-| **Stack** | Next.js 14 (App Router, Server Components), Prisma ORM, SQLite (`better-sqlite3`), Tailwind CSS, shadcn/ui |
+| **Claimed Tiers** | **T1** (Public Gallery & Deadline Engine) + **T2** (Role-Isolated Judging & Normalised CSV Export) + **T3** (Community Voting, Ballot Randomization & Anti-Abuse Integrity) |
+| **Stack** | Next.js 14 (App Router, Server Components), Prisma ORM, SQLite (`better-sqlite3`), Tailwind CSS, shadcn/ui, Framer Motion |
 | **Acceptance Status** | **7 / 7 PASS** (`python Hack_docs/run.py .dogfood.toml` verified green) |
 | **Zero-Network Ready** | Fully self-contained. Runs in `--network none` container after initial build. No external DB or SaaS calls. |
-| **RBAC Isolation** | **Backend-enforced parameter guards** in Route Handlers. Peer score snooping returns `403 Forbidden` at HTTP level. |
+| **RBAC Isolation** | **Backend-enforced parameter guards** in Route Handlers. Peer score snooping returns `403 Forbidden` at HTTP level. Self-vote defense blocks team members from voting their own submission. |
 | **Judging Algorithm** | **Modified Z-Score via Median Absolute Deviation (MAD)** with zero-variance mathematical safeguards. |
+| **Community Integrity** | Fisher-Yates per-session ballot randomization, sealed results (vote counts hidden until organizer unseals), XSS-sanitized comments, in-memory rate limiting, and full `AuditLog` trail. |
 
 ---
 
@@ -90,8 +91,13 @@ All endpoints adhere strictly to HTTP standards, status codes, and security poli
 | `/api/judge/scores` | `GET` | Participant | Participant attempt to query judging scores is rejected with `403 Forbidden`. |
 | `/api/judge/scores` | `POST` | Judge | Atomic, transactional rubric score submission. Upserts `Score` records and creates immutable `AuditLog` entry in one transaction. |
 | `/api/export.csv` | `GET` | Organizer | Computes MAD-normalized scores across all criteria and tracks. Emits RFC 4180 compliant CSV (verified header comma). Rejected for judges/participants (`403`). |
-| `/dashboard` | `GET` | Organizer | Live control tower: aggregate scoring progress, criteria distribution, track breakdown, real-time MAD leaderboard, audit log stream. |
+| `/dashboard` | `GET` | Organizer | Live control tower: aggregate scoring progress, criteria distribution, track breakdown, real-time MAD leaderboard, audit log stream, **Community Voting Governance card** (total votes, unique voters, top 5 favorites, seal/unseal toggle). |
 | `/judge` | `GET` | Judge | Scoring cockpit: assigned track selector, criteria slider inputs, composite calculation, instant score autosave. |
+| `/api/community/vote` | `GET` | Any Auth | Returns `{ hasVoted, totalVotes }`. `totalVotes` is `null` for non-organizers while results are sealed (prevents bandwagon leakage). |
+| `/api/community/vote` | `POST` | Any Auth | Toggles community upvote. Enforces self-vote block (`403` for team members), atomic upsert, and `COMMUNITY_VOTE_CAST` / `COMMUNITY_VOTE_RETRACTED` audit logging. |
+| `/api/community/comments` | `GET` | Public | Fetches comments for a project with author role badges and timestamps. |
+| `/api/community/comments` | `POST` | Any Auth | Posts a comment. Strips HTML, enforces 500-char limit, applies in-memory rate limiting, logs `COMMENT_POSTED` to `AuditLog`. |
+| `/api/community/settings` | `GET` / `PATCH` | Organizer | Reads and toggles `Event.resultsPublic` and `Event.votingOpen` lifecycle flags. Non-organizers receive `403`. |
 
 ---
 
@@ -146,15 +152,21 @@ Our implementation (`src/lib/normalization.ts`) explicitly tests for $\text{MAD}
    - *Why chosen:* Mandated by the automated acceptance test suite (`Hack_docs/run.py` and `.dogfood.toml`).
    - *Production path:* Replace static seed session IDs with cryptographically random UUIDv4 or encrypted JWT tokens upon email magic link authentication.
 
-3. **T3 Community Voting Omission:**
-   - *Decision:* Scope was ruthlessly prioritized to guarantee 100% bug-free delivery, pristine documentation, and airtight RBAC verification for T1 and T2 before attempting non-core community features.
+3. **T3 Community Voting — Implemented:**
+   - Fisher-Yates per-session ballot randomization neutralizes first-card presentation bias.
+   - Sealed results invariant: `totalVotes` is `null` for non-organizers while `Event.resultsPublic === false`, preventing bandwagon cascading.
+   - Self-vote defense: team members receive `403 Forbidden` when attempting to upvote their own project.
+   - Comment sanitization (XSS stripping, 500-char limit) and in-memory rate limiting prevent rapid spam.
+   - Full `AuditLog` trail for `COMMUNITY_VOTE_CAST`, `COMMUNITY_VOTE_RETRACTED`, and `COMMENT_POSTED` actions.
+   - See [`COMMUNITY_INTEGRITY.md`](COMMUNITY_INTEGRITY.md) for the complete threat model and Sybil resistance analysis.
 
 ---
 
 ## 📚 Technical Documentation Directory
 
 - 📐 **[ARCHITECTURE.md](ARCHITECTURE.md):** Deep-dive into Next.js App Router, offline resilience, RBAC parameter guards, and PostgreSQL migration guide.
-- 🗄️ **[DATA-MODEL.md](DATA-MODEL.md):** Detailed breakdown of all 11 Prisma models, Mermaid ER diagrams, fixture import mapping, and CSV/JSON export pathways.
+- 🗄️ **[DATA-MODEL.md](DATA-MODEL.md):** Detailed breakdown of all 13 Prisma models (including `CommunityVote` and `Comment`), Mermaid ER diagrams, fixture import mapping, and CSV/JSON export pathways.
 - 📊 **[JUDGING.md](JUDGING.md):** Judge assignment strategy (incomplete block design), scoring mathematics, Modified Z-Score (MAD) normalization, zero-variance defense, and RFC 4180 CSV export specifications.
+- 🛡️ **[COMMUNITY_INTEGRITY.md](COMMUNITY_INTEGRITY.md):** Complete T3 integrity specification — Sybil resistance, duplicate prevention, self-vote blocks, presentation bias mitigation, and the sealed-results threat model.
 - 📄 **[acceptance-report.txt](acceptance-report.txt):** Raw terminal output of the 7/7 passing acceptance test run (tier by tier).
 - ⚖️ **[LICENSE](LICENSE):** Standard MIT License.

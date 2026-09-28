@@ -1,6 +1,6 @@
 # DOGFOOD 2026 Data Model & Entity Specifications
 
-> **Complete reference documentation for the 11 Prisma database models, entity-relationship constraints, fixture mapping rules, and transactional audit architecture.**
+> **Complete reference documentation for the 13 Prisma database models, entity-relationship constraints, fixture mapping rules, and transactional audit architecture.**
 
 ---
 
@@ -24,80 +24,27 @@ erDiagram
     Track ||--o{ JudgeAssignment : "evaluates"
 
     Project ||--o{ Score : "evaluated in"
+    Project ||--o{ CommunityVote : "receives"
+    Project ||--o{ Comment : "has"
     RubricCriterion ||--o{ Score : "scored against"
+    User ||--o{ CommunityVote : "casts"
+    User ||--o{ Comment : "posts"
 
-    User {
+    CommunityVote {
         string id PK "cuid()"
-        string email UK
-        string name
-        string role "visitor|participant|judge|organizer|admin"
-        datetime createdAt
-    }
-
-    Session {
-        string id PK "Deterministic token or UUID"
-        string userId FK
-        datetime createdAt
-        datetime expiresAt
-    }
-
-    Event {
-        string id PK
-        string name
-        datetime submissionsClose
-        datetime createdAt
-    }
-
-    Track {
-        string id PK
-        string name
-        string eventId FK
-    }
-
-    Team {
-        string id PK
-        string name
-    }
-
-    TeamMember {
-        string id PK "cuid()"
-        string userId FK "Unique 1:1"
-        string teamId FK
-    }
-
-    Project {
-        string id PK
-        string teamId FK
-        string trackId FK
-        string eventId FK
-        string title
-        string summary
-        string repoUrl
-        datetime submittedAt
-        boolean isDraft
-    }
-
-    RubricCriterion {
-        string id PK "cuid()"
-        string name
-        float weight "Default 1.0"
-        int maxScore "Default 5"
-    }
-
-    JudgeAssignment {
-        string id PK "cuid()"
-        string userId FK
-        string trackId FK
-    }
-
-    Score {
-        string id PK "cuid()"
-        string judgeId FK
         string projectId FK
-        string criterionId FK
-        float value "0.0 - 5.0"
-        string comment
-        datetime submittedAt
+        string userId FK
+        datetime createdAt
+    }
+
+    Comment {
+        string id PK "cuid()"
+        string projectId FK
+        string userId FK
+        string authorName
+        string content "max 500 chars, HTML-stripped"
+        datetime createdAt
+        boolean isFlagged "default false"
     }
 
     AuditLog {
@@ -111,7 +58,7 @@ erDiagram
 
 ---
 
-## 2. Comprehensive Model Catalog (All 11 Prisma Entities)
+## 2. Comprehensive Model Catalog (All 13 Prisma Entities)
 
 ### 2.1 `User`
 Represents an authenticated actor or pre-seeded persona within the hackathon portal.
@@ -242,6 +189,43 @@ Append-only tamper-evident security audit ledger.
   - `createdAt`: `DateTime` (`@default(now())`).
 - **Relations:**
   - `user`: `User` (Belongs to User).
+
+---
+
+## 2.12 `CommunityVote` *(Phase 6 — T3)*
+Records a single community upvote from an authenticated user on a specific project.
+- **Fields:**
+  - `id`: `String` (Primary Key, `@default(cuid())`).
+  - `projectId`: `String` (FK → `Project.id`).
+  - `userId`: `String` (FK → `User.id`).
+  - `createdAt`: `DateTime` (`@default(now())`).
+- **Constraints:**
+  - `@@unique([projectId, userId])` — **Database-level duplicate prevention.** A user can cast at most one upvote per project. Attempting a second insert is caught at the Prisma layer before a 409 is returned.
+- **Anti-abuse invariants enforced at API layer (`POST /api/community/vote`):**
+  - Self-vote check against `TeamMember`: if the voter's `teamId === project.teamId`, the request is rejected with `403 Forbidden`.
+  - Toggling: if a `CommunityVote` already exists for `(projectId, userId)`, it is deleted (unvote); otherwise it is created (vote).
+  - Each change appends `COMMUNITY_VOTE_CAST` or `COMMUNITY_VOTE_RETRACTED` to `AuditLog`.
+
+### 2.13 `Comment` *(Phase 6 — T3)*
+A community-authored text comment on a project submission.
+- **Fields:**
+  - `id`: `String` (Primary Key, `@default(cuid())`).
+  - `projectId`: `String` (FK → `Project.id`).
+  - `userId`: `String` (FK → `User.id`).
+  - `authorName`: `String` (Display name at time of posting).
+  - `content`: `String` (Sanitized plain text, max 500 chars, HTML stripped server-side).
+  - `createdAt`: `DateTime` (`@default(now())`).
+  - `isFlagged`: `Boolean` (`@default(false)`) — reserved for organizer moderation.
+- **API safeguards (`POST /api/community/comments`):**
+  - All HTML tags are stripped via regex before storage (XSS prevention).
+  - Length is clamped to 500 characters.
+  - In-memory rate limiting (one request per 10 seconds per userId) prevents rapid-fire spam.
+  - Each successful post appends `COMMENT_POSTED` to `AuditLog`.
+
+### 2.14 `Event` — Voting Lifecycle Fields *(Phase 6 — T3)*
+Two fields were added to the existing `Event` model to power community voting state:
+- `votingOpen`: `Boolean` (`@default(false)`) — controlled by organizer via `PATCH /api/community/settings`.
+- `resultsPublic`: `Boolean` (`@default(false)`) — when `false`, `GET /api/community/vote` returns `totalVotes: null` for all non-organizer roles, eliminating bandwagon bias and social cascading during the voting window.
 
 ---
 
