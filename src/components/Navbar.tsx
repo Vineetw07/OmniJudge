@@ -32,7 +32,16 @@ function GithubIcon(props: React.SVGProps<SVGSVGElement>) {
   );
 }
 
-export function Navbar() {
+export interface NavbarProps {
+  currentUser?: {
+    id: string;
+    email: string;
+    name: string;
+    role: string;
+  } | null;
+}
+
+export function Navbar({ currentUser }: NavbarProps) {
   const pathname = usePathname();
 
   return (
@@ -40,7 +49,7 @@ export function Navbar() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
         {/* Left: Brand & Monospace Badge */}
         <div className="flex items-center gap-3">
-          <Link href="/projects" className="flex items-center gap-2 group">
+          <Link href="/" className="flex items-center gap-2 group">
             <span className="text-lg font-bold tracking-tight text-white group-hover:text-cyan-400 transition-colors">
               DOGFOOD 2026
             </span>
@@ -76,10 +85,10 @@ export function Navbar() {
           })}
         </nav>
 
-        {/* Right: GitHub Icon Link & Sign In */}
-        <div className="flex items-center gap-3">
+        {/* Right: GitHub Icon Link & Role / Sign In */}
+        <div className="flex items-center gap-2 sm:gap-3">
           <a
-            href="https://github.com/Vineetw07/dogfood-portal"
+            href="https://github.com/Vineetw07/OmniJudge"
             target="_blank"
             rel="noopener noreferrer"
             aria-label="GitHub Repository"
@@ -87,15 +96,41 @@ export function Navbar() {
           >
             <GithubIcon />
           </a>
-          <Link href="/login">
-            <Button
-              variant="outline"
-              size="sm"
-              className="text-xs h-8 px-3 border-white/10 bg-white/5 text-slate-200 hover:bg-white/10 hover:text-white hover:border-cyan-500/30 transition-all"
-            >
-              Sign In
-            </Button>
-          </Link>
+
+          {currentUser ? (
+            <div className="flex items-center gap-2">
+              <span
+                className={`hidden md:inline-flex items-center gap-1 text-[11px] font-mono uppercase px-2.5 py-0.5 rounded-full border ${
+                  currentUser.role === 'organizer' || currentUser.role === 'admin'
+                    ? 'bg-amber-500/10 text-amber-300 border-amber-500/30'
+                    : currentUser.role === 'judge'
+                    ? 'bg-cyan-500/10 text-cyan-300 border-cyan-500/30'
+                    : 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30'
+                }`}
+              >
+                ● {currentUser.role}
+              </span>
+              <a href="/api/auth/logout">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-xs h-8 px-2.5 border-white/10 bg-white/5 text-slate-300 hover:bg-red-500/10 hover:text-red-300 hover:border-red-500/30 transition-all"
+                >
+                  Sign Out
+                </Button>
+              </a>
+            </div>
+          ) : (
+            <Link href="/login">
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-xs h-8 px-3 border-white/10 bg-white/5 text-slate-200 hover:bg-white/10 hover:text-white hover:border-cyan-500/30 transition-all"
+              >
+                Sign In
+              </Button>
+            </Link>
+          )}
         </div>
       </div>
     </header>

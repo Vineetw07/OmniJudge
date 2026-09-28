@@ -36,9 +36,19 @@ export default async function DashboardPage() {
               Your account (<span className="text-foreground font-mono">{session.email}</span>) has role &ldquo;<span className="text-primary font-medium">{session.role}</span>&rdquo;. The organizer control tower and export functions are restricted strictly to Hackathon Administrators and Organizers.
             </p>
           </div>
-          <div className="pt-2 flex justify-center">
-            <Link href="/projects">
-              <Button variant="outline" size="sm" className="flex items-center gap-2 border-white/10 hover:bg-white/5">
+          <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-2">
+            {session.role === 'judge' && (
+              <Link href="/judge" className="w-full sm:w-auto">
+                <Button
+                  size="sm"
+                  className="w-full sm:w-auto bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-semibold text-xs shadow-[0_0_20px_rgba(56,189,248,0.3)] transition-all"
+                >
+                  Go to Judge Workspace
+                </Button>
+              </Link>
+            )}
+            <Link href="/projects" className="w-full sm:w-auto">
+              <Button variant="outline" size="sm" className="w-full sm:w-auto flex items-center justify-center gap-2 border-white/10 hover:bg-white/5 text-xs">
                 <ArrowLeft className="size-4" />
                 <span>Return to Gallery</span>
               </Button>

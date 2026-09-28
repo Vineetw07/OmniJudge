@@ -20,11 +20,15 @@ export const metadata: Metadata = {
   description: "Hackathon submission and judging platform",
 };
 
-export default function RootLayout({
+import { getServerSession } from "@/lib/auth";
+
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const session = await getServerSession();
+
   return (
     <html lang="en" className="dark">
       <body
@@ -41,7 +45,7 @@ export default function RootLayout({
         />
 
         {/* Global Floating Glass Navbar */}
-        <Navbar />
+        <Navbar currentUser={session} />
 
         {/* Page Entrance Animated Container */}
         <PageTransition>

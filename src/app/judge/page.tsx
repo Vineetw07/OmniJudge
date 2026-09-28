@@ -21,12 +21,9 @@ export default async function JudgePage() {
     redirect('/login');
   }
 
-  // Strict role check
-  if (
-    session.role !== 'judge' &&
-    session.role !== 'organizer' &&
-    session.role !== 'admin'
-  ) {
+  // Strict role check: The judging console is exclusively reserved for appointed judges
+  if (session.role !== 'judge') {
+    const isOrg = session.role === 'organizer' || session.role === 'admin';
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#07090e] text-slate-100 p-4 relative overflow-hidden">
         {/* Ambient amber glow */}
@@ -42,21 +39,36 @@ export default async function JudgePage() {
 
           <div className="space-y-2">
             <div className="inline-flex items-center gap-1.5 text-[11px] font-mono uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/30">
-              Access Restricted
+              Role Separation Enforced
             </div>
-            <h1 className="text-2xl font-bold tracking-tight text-white">Judge Console Locked</h1>
+            <h1 className="text-2xl font-bold tracking-tight text-white">Judge Workspace Locked</h1>
             <p className="text-xs text-slate-400 leading-relaxed">
-              Your account (<span className="text-slate-200 font-mono">{session.email}</span>) has role{' '}
-              <span className="text-amber-400 font-semibold uppercase">{session.role}</span>. The judging console is strictly reserved for appointed judges and hackathon organizers.
+              Your account (<span className="text-slate-200 font-mono">{session.email}</span>) is signed in with role{' '}
+              <span className="text-amber-400 font-semibold uppercase">{session.role}</span>.
+            </p>
+            <p className="text-xs text-slate-400 leading-relaxed pt-1">
+              {isOrg
+                ? 'The Scoring Console is reserved exclusively for appointed judges to evaluate assigned tracks. As an organizer, your workstation is the Organizer Control Tower.'
+                : 'The Scoring Console is strictly restricted to appointed hackathon judges.'}
             </p>
           </div>
 
-          <div className="pt-2 flex justify-center">
-            <Link href="/projects">
+          <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-2">
+            {isOrg && (
+              <Link href="/dashboard" className="w-full sm:w-auto">
+                <Button
+                  size="sm"
+                  className="w-full sm:w-auto bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-semibold text-xs shadow-[0_0_20px_rgba(56,189,248,0.3)] transition-all"
+                >
+                  Go to Dashboard
+                </Button>
+              </Link>
+            )}
+            <Link href="/projects" className="w-full sm:w-auto">
               <Button
                 variant="outline"
                 size="sm"
-                className="flex items-center gap-2 border-white/10 bg-white/[0.04] text-slate-200 hover:bg-white/[0.08] hover:text-white hover:border-white/20 transition-colors"
+                className="w-full sm:w-auto flex items-center justify-center gap-2 border-white/10 bg-white/[0.04] text-slate-200 hover:bg-white/[0.08] hover:text-white hover:border-white/20 transition-colors text-xs"
               >
                 <ArrowLeft className="size-3.5" />
                 <span>Return to Gallery</span>
@@ -74,7 +86,7 @@ export default async function JudgePage() {
     include: { track: true },
   });
 
-  let assignedTracks = assignments.map((a) => ({
+  const assignedTracks = assignments.map((a) => ({
     id: a.track.id,
     name: a.track.name,
   }));
@@ -82,15 +94,9 @@ export default async function JudgePage() {
   let projectsWhere: { trackId?: { in: string[] } } = {};
 
   // For judges with assigned tracks, filter projects by those tracks
-  if (session.role === 'judge') {
-    const trackIds = assignedTracks.map((t) => t.id);
+  const trackIds = assignedTracks.map((t) => t.id);
+  if (trackIds.length > 0) {
     projectsWhere = { trackId: { in: trackIds } };
-  } else {
-    // Organizers/admins have access to all tracks if no specific assignment
-    if (assignedTracks.length === 0) {
-      const allTracks = await prisma.track.findMany();
-      assignedTracks = allTracks.map((t) => ({ id: t.id, name: t.name }));
-    }
   }
 
   // 2. Fetch Projects in Scope
