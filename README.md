@@ -152,14 +152,6 @@ Our implementation (`src/lib/normalization.ts`) explicitly tests for $\text{MAD}
    - *Why chosen:* Mandated by the automated acceptance test suite (`Hack_docs/run.py` and `.dogfood.toml`).
    - *Production path:* Replace static seed session IDs with cryptographically random UUIDv4 or encrypted JWT tokens upon email magic link authentication.
 
-3. **T3 Community Voting — Implemented:**
-   - Fisher-Yates per-session ballot randomization neutralizes first-card presentation bias.
-   - Sealed results invariant: `totalVotes` is `null` for non-organizers while `Event.resultsPublic === false`, preventing bandwagon cascading.
-   - Self-vote defense: team members receive `403 Forbidden` when attempting to upvote their own project.
-   - Comment sanitization (XSS stripping, 500-char limit) and in-memory rate limiting prevent rapid spam.
-   - Full `AuditLog` trail for `COMMUNITY_VOTE_CAST`, `COMMUNITY_VOTE_RETRACTED`, and `COMMENT_POSTED` actions.
-   - See [`COMMUNITY_INTEGRITY.md`](COMMUNITY_INTEGRITY.md) for the complete threat model and Sybil resistance analysis.
-
 ---
 
 ## 📚 Technical Documentation Directory
