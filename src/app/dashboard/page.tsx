@@ -4,7 +4,11 @@ import Link from 'next/link';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from '@/lib/auth';
 import { normaliseAllJudges } from '@/lib/normalization';
-import { DashboardClient, DashboardKPIs } from './dashboard-client';
+import {
+  DashboardClient,
+  DashboardKPIs,
+  CommunityGovernanceData,
+} from './dashboard-client';
 import { Button } from '@/components/ui/button';
 import { ShieldAlert, ArrowLeft } from 'lucide-react';
 
@@ -60,7 +64,17 @@ export default async function DashboardPage() {
   }
 
   // Fetch all primary collections in parallel
-  const [projects, criteria, scores, judges, auditLogs] = await Promise.all([
+  const [
+    projects,
+    criteria,
+    scores,
+    judges,
+    auditLogs,
+    totalCommunityVotes,
+    uniqueCommunityVoters,
+    topCommunityFavorites,
+    eventState,
+  ] = await Promise.all([
     prisma.project.findMany({
       include: {
         track: true,
@@ -81,9 +95,24 @@ export default async function DashboardPage() {
       orderBy: { name: 'asc' },
     }),
     prisma.auditLog.findMany({
-      take: 15,
+      take: 50,
       orderBy: { createdAt: 'desc' },
       include: { user: true },
+    }),
+    prisma.communityVote.count(),
+    prisma.communityVote.groupBy({ by: ['userId'] }).then((r) => r.length),
+    prisma.project.findMany({
+      select: {
+        id: true,
+        title: true,
+        track: { select: { name: true } },
+        _count: { select: { communityVotes: true } },
+      },
+      orderBy: { communityVotes: { _count: 'desc' } },
+      take: 5,
+    }),
+    prisma.event.findFirst({
+      select: { votingOpen: true, resultsPublic: true },
     }),
   ]);
 
@@ -246,12 +275,23 @@ export default async function DashboardPage() {
     let payloadSummary = log.payload;
     try {
       const parsed = JSON.parse(log.payload);
-      if (parsed.projectId) {
+      if (parsed.projectId && parsed.scores) {
         payloadSummary = `Project: ${parsed.projectId}, Scores: ${
           parsed.scores?.length || 0
         } criteria`;
+      } else if (parsed.projectTitle) {
+        payloadSummary = `Vote for "${parsed.projectTitle}" (${parsed.projectId})`;
+      } else if (parsed.length !== undefined || parsed.contentLength !== undefined) {
+        payloadSummary = `Comment on ${parsed.projectId} (${parsed.length || parsed.contentLength} chars)`;
+      } else if (parsed.resultsPublic !== undefined || parsed.votingOpen !== undefined) {
+        const parts = [];
+        if (parsed.votingOpen !== undefined) parts.push(`votingOpen: ${parsed.votingOpen}`);
+        if (parsed.resultsPublic !== undefined) parts.push(`resultsPublic: ${parsed.resultsPublic}`);
+        payloadSummary = `Settings: ${parts.join(', ')}`;
       } else if (parsed.title) {
         payloadSummary = `Title: ${parsed.title}`;
+      } else if (parsed.projectId) {
+        payloadSummary = `Project: ${parsed.projectId}`;
       }
     } catch {
       // Keep raw string if not JSON
@@ -283,6 +323,19 @@ export default async function DashboardPage() {
     totalReviews: scores.length,
   };
 
+  const communityGovernance: CommunityGovernanceData = {
+    totalVotes: totalCommunityVotes,
+    uniqueVoters: uniqueCommunityVoters,
+    votingOpen: eventState?.votingOpen ?? true,
+    resultsPublic: eventState?.resultsPublic ?? false,
+    topFavorites: topCommunityFavorites.map((p) => ({
+      id: p.id,
+      title: p.title,
+      trackName: p.track?.name || 'General',
+      voteCount: p._count.communityVotes,
+    })),
+  };
+
   return (
     <DashboardClient
       user={{
@@ -292,6 +345,7 @@ export default async function DashboardPage() {
         role: session.role,
       }}
       kpis={kpis}
+      communityGovernance={communityGovernance}
       judgeProgress={judgeProgress}
       leaderboard={leaderboard}
       recentAuditLogs={recentAuditLogs}
