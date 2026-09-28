@@ -131,11 +131,22 @@ if (session.role !== 'judge' && session.role !== 'organizer' && session.role !==
   return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 }
 
-// 3. IDOR Defense: Prevent Judge B from querying Judge A's scores
+// 3. IDOR Defense (GET): Prevent Judge B from querying Judge A's scores
 const targetJudge = req.nextUrl.searchParams.get('judge');
+if (session.role === 'judge' && targetJudge && targetJudge !== session.id) {
+  return NextResponse.json({ error: 'Forbidden: Cannot inspect peer scores' }, { status: 403 });
+}
+
+// 4. Conflict of Interest (COI) Defense (POST): Bar judges from scoring their own team
 if (session.role === 'judge') {
-  if (targetJudge && targetJudge !== session.id) {
-    return NextResponse.json({ error: 'Forbidden: Cannot inspect peer scores' }, { status: 403 });
+  const isTeamMember = await prisma.teamMember.findFirst({
+    where: { userId: session.id, teamId: project.teamId },
+  });
+  if (isTeamMember) {
+    return NextResponse.json(
+      { error: 'Conflict of interest: Judges cannot evaluate projects from their own team' },
+      { status: 403 }
+    );
   }
 }
 ```

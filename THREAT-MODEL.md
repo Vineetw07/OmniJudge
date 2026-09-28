@@ -79,6 +79,7 @@
 | **J-3** | **Judge scoring out-of-track project** | Judge POSTs score for project in unassigned track | `JudgeAssignment.findFirst({ userId, trackId })` — 403 if no assignment found | `403 Forbidden` | ✅ |
 | **J-4** | **Unauthenticated score submission** | Anonymous `curl` to `POST /api/judge/scores` | Session validation is first check — no session cookie → reject | `401 Unauthorized` | ✅ |
 | **J-5** | **Judge evaluating own team submission (Conflict of Interest)** | Judge POSTs score for project submitted by their own team | `TeamMember.findFirst({ userId, teamId: project.teamId })` relational check in route handler and `/judge` queue filter | `403 Forbidden` | ✅ Integration tested |
+| **J-6** | **Unassigned judge scope leakage** | Judge with 0 track assignments loads `/judge` cockpit | Projects query strictly scoped with `{ trackId: { in: trackIds } }`, preventing project leakage | Empty queue (`[]`) | ✅ Verified |
 
 ### 3.3 Comment / Content Threats
 

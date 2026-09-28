@@ -331,7 +331,13 @@ await prisma.$transaction(async (tx) => {
   });
   if (!assignment) throw new Error('Not assigned to track');
 
-  // 2. Atomic upsert of all rubric criteria
+  // 2. Conflict of interest defense: ensure judge is not a member of submitting team
+  const isTeamMember = await tx.teamMember.findFirst({
+    where: { userId: session.id, teamId: project.teamId },
+  });
+  if (isTeamMember) throw new Error('Conflict of interest');
+
+  // 3. Atomic upsert of all rubric criteria
   for (const s of scores) {
     await tx.score.upsert({
       where: { /* judgeId_projectId_criterionId */ },
@@ -340,11 +346,11 @@ await prisma.$transaction(async (tx) => {
     });
   }
 
-  // 3. Record immutable audit record
+  // 4. Record immutable audit record
   await tx.auditLog.create({
     data: {
       userId: session.id,
-      action: 'SUBMIT_SCORE',
+      action: 'score_submitted',
       payload: JSON.stringify({ projectId, scores, comment }),
     }
   });
@@ -374,20 +380,22 @@ Restricted strictly to the `organizer` role. It joins `Project`, `Track`, `Score
   2. MAD Normalization: Modified_Z = 0.6745 × (Composite_Raw - Median) / MAD
   3. Cross-Judge Mean:  Project_Avg_Raw = Mean(Composite_Raw)
                         Project_Avg_Norm = Mean(Modified_Z)
-  4. Ranking Sort:      Sort by NormalizedScore DESC, then RawScore DESC, then ID ASC
+  4. Ranking Sort:      Status Invariant (reviewed outranks unreviewed),
+                        then NormalizedScore DESC (ε = 1e-9 tolerance),
+                        then RawScore DESC, then ID ASC
                  │
                  ▼
-[ RFC 4180 CSV Output Stream ]
+[ RFC 4180 & CWE-1236 CSV Output Stream ]
   MIME: text/csv; charset=utf-8
-  Content-Disposition: attachment; filename="dogfood_scores.csv"
+  Content-Disposition: attachment; filename="omnijudge_scores.csv"
 ```
 
 #### CSV Column Mapping Schema
 | CSV Column Name | Source Prisma Model / Field | Transformation / Serialization Rule |
 | :--- | :--- | :--- |
-| `project_id` | `Project.id` | RFC 4180 quoted string escape |
-| `project_title` | `Project.title` | RFC 4180 quoted string escape |
-| `track` | `Track.name` (via `Project.trackId`) | Defaults to `'General'` if unassigned; quoted |
+| `project_id` | `Project.id` | RFC 4180 quoted string escape with CWE-1236 sanitization |
+| `project_title` | `Project.title` | RFC 4180 quoted string escape with CWE-1236 sanitization |
+| `track` | `Track.name` (via `Project.trackId`) | Defaults to `'General'` if unassigned; quoted with CWE-1236 sanitization |
 | `raw_score` | Derived from `Score.value` | Weighted arithmetic mean, fixed to 2 decimals (`.toFixed(2)`) |
 | `normalized_score` | Derived via `normaliseAllJudges()` | Cross-judge average Modified Z-score, fixed to 4 decimals (`.toFixed(4)`) |
 | `rank` | Computed ordinal rank | 1-based sequential integer ($1, 2, 3, ...$) |

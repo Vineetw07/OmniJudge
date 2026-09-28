@@ -13,8 +13,8 @@
 | **Stack** | Next.js 14 (App Router, Server Components), Prisma ORM, SQLite (`better-sqlite3`), Tailwind CSS, shadcn/ui, Framer Motion |
 | **Acceptance Status** | **7 / 7 PASS** (`python Hack_docs/run.py .dogfood.toml` verified green) |
 | **Zero-Network Ready** | Fully self-contained. Runs in `--network none` container after initial build. No external DB or SaaS calls. |
-| **RBAC Isolation** | **Backend-enforced parameter guards** in Route Handlers. Peer score snooping returns `403 Forbidden` at HTTP level. Self-vote defense blocks team members from voting their own submission. |
-| **Judging Algorithm** | **Modified Z-Score via Median Absolute Deviation (MAD)** with zero-variance mathematical safeguards. |
+| **RBAC Isolation** | **Backend-enforced parameter guards** in Route Handlers. Peer score snooping returns `403 Forbidden` at HTTP level. Relational checks block team members from self-voting (T3) or self-judging (T2 Conflict of Interest) with `403 Forbidden`. |
+| **Judging Algorithm** | **Modified Z-Score via Median Absolute Deviation (MAD)** with zero-variance mathematical safeguards (`jdg_30`, `jdg_07`, single-review panels) and CWE-1236 CSV injection protection. |
 | **Community Integrity** | Fisher-Yates per-session ballot randomization, sealed results (vote counts hidden until organizer unseals), XSS-sanitized comments, in-memory rate limiting, and full `AuditLog` trail. |
 
 ---
@@ -89,8 +89,8 @@ All endpoints adhere strictly to HTTP standards, status codes, and security poli
 | `/api/judge/scores` | `GET` | Judge (`judge_a`) | Returns JSON array of authenticated judge's own scores (`200 OK`). Anonymous requests receive `401 Unauthorized`. |
 | `/api/judge/scores?judge=user_jdg_a_01` | `GET` | Judge (`judge_b`) | **RBAC Boundary Test:** Attempt by Judge B to inspect Judge A's scores is rejected with `403 Forbidden` at the route handler level. |
 | `/api/judge/scores` | `GET` | Participant | Participant attempt to query judging scores is rejected with `403 Forbidden`. |
-| `/api/judge/scores` | `POST` | Judge | Atomic, transactional rubric score submission. Upserts `Score` records and creates immutable `AuditLog` entry in one transaction. |
-| `/api/export.csv` | `GET` | Organizer | Computes MAD-normalized scores across all criteria and tracks. Emits RFC 4180 compliant CSV (verified header comma). Rejected for judges/participants (`403`). |
+| `/api/judge/scores` | `POST` | Judge | Atomic, transactional rubric score submission. Enforces track jurisdiction and team Conflict of Interest (COI) check (`403 Forbidden`). Upserts `Score` records and writes `AuditLog` in one ACID transaction. |
+| `/api/export.csv` | `GET` | Organizer | Computes MAD-normalized scores across all criteria and tracks. Emits RFC 4180 & CWE-1236 compliant CSV (verified header comma, formula triggers sanitized). Rejected for judges/participants (`403`). |
 | `/dashboard` | `GET` | Organizer | Live control tower: aggregate scoring progress, criteria distribution, track breakdown, real-time MAD leaderboard, audit log stream, **Community Voting Governance card** (total votes, unique voters, top 5 favorites, seal/unseal toggle). |
 | `/judge` | `GET` | Judge | Scoring cockpit: assigned track selector, criteria slider inputs, composite calculation, instant score autosave. |
 | `/api/community/vote` | `GET` | Any Auth | Returns `{ hasVoted, totalVotes }`. `totalVotes` is `null` for non-organizers while results are sealed (prevents bandwagon leakage). |
@@ -134,10 +134,15 @@ $$\text{MAD} = \text{median}\left(|x_i - \text{median}(X)|\right)$$
 
 $$\text{Modified Z} = \frac{0.6745 \cdot (x_i - \text{median}(X))}{\text{MAD}}$$
 
-### Zero-Variance Fixture Protection
-In fixture dataset `fixtures.json`, judge `jdg_30` (Rafa Okonkwo) gave identical scores across projects, causing $\text{MAD} = 0$. Standard normalization algorithms crash with division-by-zero or emit `NaN`. 
+### Zero-Variance & Adversarial Fixture Protections
+In fixture dataset `fixtures.json`, judge `jdg_30` (Rafa Okonkwo) gave identical `3.0` scores, `jdg_07` (Iva Petrova) gave identical `4.0` scores, and single-review panels (`jdg_01`, `jdg_23`) evaluate $N=1$ submissions—all mathematically yielding $\text{MAD} = 0$. Standard normalization algorithms crash with division-by-zero or emit `NaN`. 
 
-Our implementation (`src/lib/normalization.ts`) explicitly tests for $\text{MAD} == 0$ (or $< 10^{-9}$), safely defaulting the modified Z-score to `0.0`. This ensures deterministic leaderboard calculation and pristine CSV export.
+Our implementation (`src/lib/normalization.ts`):
+- Explicitly tests for $\text{MAD} == 0$ (or $< 10^{-9}$), safely defaulting the modified Z-score to `0.0`.
+- Validates every mapped score via `Number.isFinite` to prevent non-finite float leakage.
+- Enforces an **Evaluation Status Invariant**: reviewed projects (`reviewCount > 0`) strictly outrank unreviewed projects.
+- Applies an $\epsilon = 10^{-9}$ floating-point tolerance on normalized score comparisons to eliminate IEEE 754 precision flutter.
+- Neutralizes CSV formula injection attempts (CWE-1236) in `GET /api/export.csv`.
 
 ---
 
