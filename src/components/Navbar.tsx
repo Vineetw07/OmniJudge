@@ -51,7 +51,7 @@ export function Navbar({ currentUser }: NavbarProps) {
         <div className="flex items-center gap-3">
           <Link href="/" className="flex items-center gap-2 group">
             <span className="text-lg font-bold tracking-tight text-white group-hover:text-cyan-400 transition-colors">
-              DOGFOOD 2026
+              OmniJudge
             </span>
           </Link>
           <Badge

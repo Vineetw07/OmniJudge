@@ -1,14 +1,16 @@
-# Progress — Survey Explorer 3
+# Progress Tracking — Survey Explorer 3
 
-Last visited: 2026-09-27T09:42:30Z
-Current status: Investigation complete, handoff report generated
+**Last visited**: 2026-09-28T10:52:15Z
+**Current status**: Writing handoff report
 
-- [x] Initialized DISPATCH.md and BRIEFING.md
-- [x] Read ORIGINAL_REQUEST.md
-- [x] Inspect src/lib/normalization.ts (MAD normalization, exports, zero variance handling, multi-judge multi-rubric aggregation)
-- [x] Inspect AuditLog schema and payload requirements (action: "score_submitted")
-- [x] Inspect CSV export requirements (columns, MIME types, headers, line endings)
-- [x] Inspect UI requirements (/judge and /dashboard from Hack_docs/spec.md and dogfood_build_plan.md)
-- [x] Synthesized findings in BRIEFING.md
-- [x] Wrote handoff.md following 5-Component protocol
-- [x] Sent completion message to parent
+## Tasks
+- [x] Initialize DISPATCH.md and BRIEFING.md
+- [x] Read ORIGINAL_REQUEST.md (specifically section ## 2026-09-28T10:45:46Z)
+- [x] Read PROGRESS.md and Hack_docs/run.py
+- [x] Inspect `src/app/dashboard/page.tsx` and `src/app/dashboard/dashboard-client.tsx`
+- [x] Inspect KPI data, leaderboard calculation (MAD normalized), CSV export button, judge progress table, audit trail feed
+- [x] Check CSV export endpoint (`/api/export.csv`)
+- [x] Check package.json scripts (`typecheck`, `lint`, `build`, `start`)
+- [x] Check `.dogfood.toml` and verify runner requirements in `Hack_docs/run.py`
+- [x] Run typecheck/lint/build dry-run and acceptance checker to confirm 7/7 baseline
+- [ ] Synthesize findings into handoff.md and report to parent

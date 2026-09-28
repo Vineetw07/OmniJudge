@@ -1,279 +1,279 @@
-# Acceptance Checker & RBAC Boundary Investigation Report (Phase 3 T2 Judging)
+# Handoff Report: Survey of Role-Aware Login & Judge Scoring Workspace (R3 & R4)
 
-## 1. Observation
-
-### 1.1 Acceptance Checker Suite (`Hack_docs/run.py`)
-Investigation of `d:\TP\Hackathon\DogFood\Hack_docs\run.py` reveals the execution flow and exact mechanics of each acceptance test:
-
-#### Network & Request Engine (`run.py:60-76`)
-```python
-def request(url, header=None, method="GET", body=None):
-    """Return (status, text). Never raises on an HTTP error status."""
-    req = urllib.request.Request(url, method=method)
-    if header:
-        name, _, value = header.partition(":")
-        req.add_header(name.strip(), value.strip())
-    if body is not None:
-        req.data = json.dumps(body).encode()
-        req.add_header("Content-Type", "application/json")
-    try:
-        with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:
-            return resp.status, resp.read().decode("utf-8", "replace")
-    except urllib.error.HTTPError as e:
-        return e.code, e.read().decode("utf-8", "replace")
-    except Exception as e:
-        return 0, f"{type(e).__name__}: {e}"
-```
-- Timeout: `TIMEOUT = 10` seconds (`run.py:57`).
-- Single Header: Only ONE header can be attached via `header.partition(":")`.
-- Error Handling: `urllib.error.HTTPError` is caught and returns `(e.code, body)`. Uncaught network/connection errors return `(0, error_message)`.
-- Body Decoding: Responses are decoded as UTF-8 with replacement: `resp.read().decode("utf-8", "replace")`.
-
-#### Detailed Check Mechanics (`run.py:91-187`)
-
-1. **`check_t1_gallery` ("gallery is public", lines 102-110)**:
-   ```python
-   c = Check("T1", "gallery is public")
-   status, body = request(url("gallery"))
-   c.ok = status == 200
-   gallery_body = body
-   ```
-   - Target URL: `base + routes.get("gallery", "")` (`http://localhost:8080/projects`).
-   - Method: `GET`.
-   - Headers: None (`header=None`).
-   - Expected Status: `status == 200`.
-   - Side Effect: Stores HTML response in `gallery_body` for subsequent test.
-
-2. **`check_t1_fixtures` ("project from fixtures shown", lines 112-126)**:
-   ```python
-   c = Check("T1", "project from fixtures shown")
-   titles = fixture_titles(fixture)
-   haystack = gallery_body.lower()
-   c.ok = any(t.lower() in haystack for t in titles)
-   ```
-   - No HTTP Request: Directly inspects `gallery_body` obtained during `check_t1_gallery`.
-   - Fixture Titles: `fixture_titles(fixture, n=3)` (lines 190-192) extracts first 3 titles from `Hack_docs/fixtures.json`: `"Glass Signal"`, `"Small Meadow"`, `"Deep Compass"`.
-   - Match Condition: Case-insensitive substring search in `gallery_body.lower()`. At least one title must be present in the raw HTML.
-
-3. **`check_t1_closed` ("closed event refuses submissions", lines 128-141)**:
-   ```python
-   c = Check("T1", "closed event refuses submissions")
-   status, _ = request(
-       url("submit"),
-       header=auth.get("participant"),
-       method="POST",
-       body={"title": "dogfood-late-submission-probe", "summary": "probe"},
-   )
-   c.ok = 400 <= status < 500
-   ```
-   - Target URL: `base + routes.get("submit", "")` (`http://localhost:8080/api/projects`).
-   - Method: `POST`.
-   - Headers: `Cookie: session=prt_seed_token_2026` and `Content-Type: application/json`.
-   - Payload: `{"title": "dogfood-late-submission-probe", "summary": "probe"}`.
-   - Expected Status: `400 <= status < 500` (any 4xx status code; our implementation returns `409 Conflict`).
-
-4. **`check_t2_own_scores` ("judge sees own scores", lines 144-151)**:
-   ```python
-   c = Check("T2", "judge sees own scores")
-   status, _ = request(url("judge_scores"), header=auth.get("judge_a"))
-   c.ok = status == 200
-   ```
-   - Target URL: `base + routes.get("judge_scores", "")` (`http://localhost:8080/api/judge/scores`).
-   - Method: `GET`.
-   - Headers: `Cookie: session=jdg_a_seed_token_2026`.
-   - Expected Status: `status == 200`.
-   - Response Parsing: Response body is ignored (`_`) in `run.py`.
-
-5. **`check_t2_peer_scores` ("judge cannot see peer scores", lines 153-163)**:
-   ```python
-   c = Check("T2", "judge cannot see peer scores")
-   probe = base + routes.get("peer_scores", routes.get("judge_scores", ""))
-   status, _ = request(probe, header=auth.get("judge_b"))
-   c.ok = status in (401, 403)
-   ```
-   - Target URL: `base + routes.get("peer_scores", ...)` (`http://localhost:8080/api/judge/scores?judge=user_jdg_a_01`).
-   - Method: `GET`.
-   - Headers: `Cookie: session=jdg_b_seed_token_2026` (Judge Beta).
-   - Expected Status: `status in (401, 403)` (403 Forbidden is required for authenticated peer isolation).
-
-6. **`check_t2_participant` ("participant blocked", lines 165-172)**:
-   ```python
-   c = Check("T2", "participant blocked")
-   status, _ = request(url("judge_scores"), header=auth.get("participant"))
-   c.ok = status in (401, 403)
-   ```
-   - Target URL: `base + routes.get("judge_scores", "")` (`http://localhost:8080/api/judge/scores`).
-   - Method: `GET`.
-   - Headers: `Cookie: session=prt_seed_token_2026` (Participant).
-   - Expected Status: `status in (401, 403)` (403 Forbidden for non-judge).
-
-7. **`check_t2_csv` ("csv export works", lines 174-185)**:
-   ```python
-   c = Check("T2", "csv export works")
-   status, body = request(url("csv_export"), header=auth.get("organizer"))
-   first_line = body.splitlines()[0] if body.splitlines() else ""
-   c.ok = status == 200 and "," in first_line
-   ```
-   - Target URL: `base + routes.get("csv_export", "")` (`http://localhost:8080/api/export.csv`).
-   - Method: `GET`.
-   - Headers: `Cookie: session=org_seed_token_2026` (Organizer).
-   - Expected Status: `status == 200`.
-   - Content Validation: `body.splitlines()[0]` must contain at least one comma `,`.
-   - Content-Type: `run.py` does not inspect the `Content-Type` header, but project spec R3 requires `Content-Type: text/csv; charset=utf-8`.
-
-#### Verification & Tier Gating (`run.py:245-254`)
-```python
-verified = [t for t in TIERS
-            if any(c.tier == t for c in checks)
-            and all(c.ok for c in checks if c.tier == t)]
-# a tier only counts if every tier below it also passed
-solid = []
-for t in TIERS:
-    if t in verified:
-        solid.append(t)
-    else:
-        break
-```
-- Cascading Tier Gate: T2 is ONLY marked verified if all T1 checks pass AND all T2 checks pass. A single failure in T1 drops verified output to "verified nothing".
+**Agent Identity:** Survey Explorer 2 (`explorer_survey_2`)  
+**Working Directory:** `d:\TP\Hackathon\DogFood\.agents\teamwork\explorer_survey_2\`  
+**Target Focus Areas:**
+- **R3:** Role-Aware Login Polish (`src/app/login/page.tsx`)
+- **R4:** Judge Scoring Workspace Polish (`src/app/judge/page.tsx` & `src/app/judge/judge-portal-client.tsx`)
 
 ---
 
-### 1.2 Configuration (`d:\TP\Hackathon\DogFood\.dogfood.toml`)
-Inspection of `.dogfood.toml`:
-```toml
-[portal]
-base_url = "http://localhost:8080"
+## 1. Observation
 
-[tiers]
-claimed = ["T1", "T2"]
-pitch = "Self-hostable hackathon submission and judging platform with backend-enforced role isolation and MAD-based score normalisation."
+### 1.1 R3: Role-Aware Login Current Implementation (`src/app/login/page.tsx`)
 
-[auth]
-organizer   = "Cookie: session=org_seed_token_2026"
-judge_a     = "Cookie: session=jdg_a_seed_token_2026"
-judge_b     = "Cookie: session=jdg_b_seed_token_2026"
-participant = "Cookie: session=prt_seed_token_2026"
+1. **Client Boundary & Dependencies:**
+   - `src/app/login/page.tsx:1`: Explicit `'use client';` directive.
+   - Imports shadcn primitives (`Card`, `Input`, `Label`, `Button`, `Badge`) and Lucide icons (`ArrowLeft`, `KeyRound`, `AlertCircle`).
 
-[routes]
-gallery      = "/projects"
-submit       = "/api/projects"
-judge_scores = "/api/judge/scores"
-peer_scores  = "/api/judge/scores?judge=user_jdg_a_01"
-csv_export   = "/api/export.csv"
-```
+2. **Test Accounts Array (`src/app/login/page.tsx:12-17`):**
+   ```typescript
+   const TEST_ACCOUNTS = [
+     { role: 'Organizer', email: 'organizer@dogfood.dev', desc: 'Admin & export controls' },
+     { role: 'Judge A', email: 'judge_a@dogfood.dev', desc: 'Scoring & peer evaluations' },
+     { role: 'Judge B', email: 'judge_b@dogfood.dev', desc: 'Peer isolation evaluation' },
+     { role: 'Participant', email: 'participant@dogfood.dev', desc: 'Project submissions' },
+   ];
+   ```
+   *Note:* The roles currently display `Judge A` and `Judge B`. In `src/lib/seed.ts:21,28`, they are seeded as `Judge Alpha` (`judge_a@dogfood.dev`) and `Judge Beta` (`judge_b@dogfood.dev`).
 
-### 1.3 Database & Seed Identity Verification
-Verification of `src/lib/seed.ts` (lines 10-39) and direct SQLite DB query via Prisma:
-- `TEST_USERS[1]`:
-  - `id`: `'user_jdg_a_01'`
-  - `email`: `'judge_a@dogfood.dev'`
-  - `name`: `'Judge Alpha'`
-  - `role`: `'judge'`
-  - `token`: `'jdg_a_seed_token_2026'`
-- Direct DB query confirmed:
-  `prisma.user.findUnique({ where: { email: 'judge_a@dogfood.dev' } })` returned:
-  ```json
-  {
-    "id": "user_jdg_a_01",
-    "email": "judge_a@dogfood.dev",
-    "name": "Judge Alpha",
-    "role": "judge"
-  }
-  ```
-- Result: The route `peer_scores = "/api/judge/scores?judge=user_jdg_a_01"` EXACTLY matches judge_a's actual DB user ID.
+3. **Auth State & Form Handling (`src/app/login/page.tsx:20-65`):**
+   - State variables:
+     ```typescript
+     const [email, setEmail] = React.useState('');
+     const [loading, setLoading] = React.useState(false);
+     const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
+     ```
+   - `handleSubmit` submits a POST request to `/api/auth/login`:
+     ```typescript
+     const res = await fetch('/api/auth/login', {
+       method: 'POST',
+       headers: { 'Content-Type': 'application/json' },
+       body: JSON.stringify({ email: email.trim() }),
+     });
+     ```
+   - On response failure (`!res.ok`), extracts `data.error || 'Authentication failed'` into `errorMessage`.
+   - On response success, uses hard window navigation (`window.location.href`) to ensure cookies reload in Server Components:
+     ```typescript
+     const role = data.user?.role?.toLowerCase();
+     if (role === 'judge') {
+       window.location.href = '/judge';
+     } else if (role === 'organizer' || role === 'admin') {
+       window.location.href = '/dashboard';
+     } else {
+       window.location.href = '/projects';
+     }
+     ```
+
+4. **DOM Layout & Styling (`src/app/login/page.tsx:68-150`):**
+   - Wrapper: `min-h-screen flex flex-col justify-center items-center bg-muted/20 px-4 py-12` (plain neutral/light surface, lacking the Midnight Obsidian aesthetic).
+   - Container: Standard opaque `<Card className="border shadow-sm bg-card">`.
+   - Input: Default `<Input id="email" ... />` without cyan glow focus states.
+   - Quick-select buttons: Plain `border bg-background hover:bg-muted/60` buttons lacking role-specific luminous border accents and active glow indicators.
+
+---
+
+### 1.2 R4: Judge Scoring Workspace Current Implementation (`src/app/judge/page.tsx` & `src/app/judge/judge-portal-client.tsx`)
+
+1. **Server Component & Access Control (`src/app/judge/page.tsx:18-54`):**
+   - Session lookup: `const session = await getServerSession();`
+   - Unauthenticated check: `if (!session) redirect('/login');`
+   - Role guard: If `session.role !== 'judge' && session.role !== 'organizer' && session.role !== 'admin'`, renders "Access Restricted" card.
+
+2. **Server-to-Client Prop Passing (`src/app/judge/page.tsx:56-141`):**
+   - `assignedTracks`: Queried from `prisma.judgeAssignment` for `userId: session.id`.
+   - `projects`: Queried from `prisma.project` filtered by assigned track IDs for judges, or all tracks for organizers.
+   - `criteria`: Queried from `prisma.rubricCriterion`, ordered by `weight: 'desc'`.
+   - `initialScores`: Queried from `prisma.score` where `judgeId: session.id`.
+   - All models are cleanly mapped to plain serializable JSON objects (string IDs, numbers, ISO dates):
+     ```typescript
+     <JudgePortalClient
+       user={{ id: session.id, name: session.name, email: session.email, role: session.role }}
+       assignedTracks={assignedTracks}
+       projects={serializableProjects}
+       criteria={serializableCriteria}
+       initialScores={serializableScores}
+     />
+     ```
+
+3. **Client Component State & Logic (`src/app/judge/judge-portal-client.tsx:77-130`):**
+   - `scoresMap`: `Map<string, Map<string, number>>` (maps `projectId` → `criterionId` → `score`).
+   - `commentsMap`: `Map<string, string>` (maps `projectId` → `comment`).
+   - `selectedProjectId`: string tracking currently selected project (defaults to first project `projects[0].id`).
+   - `currentScores`: `{ [criterionId: string]: number }` synced via `useEffect` whenever `selectedProjectId` changes (defaults to previously submitted score or 3).
+   - `currentComment`: synced via `useEffect` to previously submitted comment or `''`.
+
+4. **Composite Score Calculation (`src/app/judge/judge-portal-client.tsx:134-147`):**
+   ```typescript
+   const compositeScore = React.useMemo(() => {
+     let weightedSum = 0;
+     let totalWeight = 0;
+     for (const crit of criteria) {
+       const val = currentScores[crit.id];
+       if (typeof val === 'number') {
+         weightedSum += val * crit.weight;
+         totalWeight += crit.weight;
+       }
+     }
+     return totalWeight > 0 ? (weightedSum / totalWeight).toFixed(2) : '0.00';
+   }, [currentScores, criteria]);
+   ```
+   *Note:* The current formula yields a 0.00–5.00 score. The spec asks for a large display (e.g., `87.4 / 100` or raw composite with percentage).
+
+5. **Submission Handler & API Boundary (`src/app/judge/judge-portal-client.tsx:164-222`):**
+   - Submits payload to `POST /api/judge/scores`:
+     ```typescript
+     const payloadScores = criteria.map((crit) => ({
+       criterionId: crit.id,
+       value: currentScores[crit.id] ?? 0,
+     }));
+     const res = await fetch('/api/judge/scores', {
+       method: 'POST',
+       headers: { 'Content-Type': 'application/json' },
+       body: JSON.stringify({
+         projectId: selectedProject.id,
+         scores: payloadScores,
+         comment: currentComment.trim(),
+       }),
+     });
+     ```
+   - On success: updates `scoresMap` and `commentsMap`, displays success alert, and toggles project status in the queue from "Pending" to "Scored".
+
+6. **Layout Architecture (`src/app/judge/judge-portal-client.tsx:309-550`):**
+   - Grid layout: `grid grid-cols-1 lg:grid-cols-12 gap-6 items-start`.
+   - Left column: `lg:col-span-5` (41.7% width).
+   - Right column: `lg:col-span-7` (58.3% width).
+   - Rubric criteria input: Discrete buttons for numbers `0, 1, 2, 3, 4, 5` rather than interactive sliders.
 
 ---
 
 ## 2. Logic Chain
 
-1. **RBAC Boundary Architecture**:
-   - `check_t2_own_scores` accesses `/api/judge/scores` using `judge_a` credentials. The handler must authenticate the user via session cookie `session=jdg_a_seed_token_2026`, verify `role === 'judge'`, and return 200 with the judge's assigned projects and submitted scores.
-   - `check_t2_peer_scores` probes `/api/judge/scores?judge=user_jdg_a_01` using `judge_b` credentials (`session=jdg_b_seed_token_2026`).
-   - The handler at `/api/judge/scores` must inspect `req.nextUrl.searchParams.get('judge')`.
-   - If `requestedJudgeId` is present and does not equal `sessionUser.id`, it MUST immediately return HTTP `403 Forbidden`.
-   - Even if `judge_b` is an authenticated judge, cross-judge score inspection is prohibited to prevent score anchoring / bias leakage.
-   - If `sessionUser.role !== 'judge'`, it must return `403 Forbidden` (`check_t2_participant`).
-   - If no valid session exists, return `401 Unauthorized`.
+### 2.1 Logic Chain for R3: Role-Aware Login Polish
 
-2. **CSV Export Endpoint Requirements**:
-   - `check_t2_csv` accesses `/api/export.csv` with `organizer` credentials (`session=org_seed_token_2026`).
-   - The handler must verify `sessionUser.role === 'organizer' || sessionUser.role === 'admin'`. Non-organizers (participants, judges, visitors) must be rejected with `403 Forbidden`.
-   - The response must have HTTP 200 status.
-   - `run.py` splits the response body by line and checks `"," in first_line`.
-   - The response must NOT have leading blank lines or comments on line 1.
-   - Line 1 must be a valid CSV header row containing commas, e.g.:
-     `project_id,project_title,track,raw_score,normalized_score,rank`
-   - Spec requirement R3 requires header `Content-Type: text/csv; charset=utf-8`.
-   - Normalization must use MAD (`normaliseJudgeScores` from `src/lib/normalization.ts`) to handle zero-variance judges (e.g. `jdg_30`, Rafa Okonkwo) without divide-by-zero errors.
+1. **Preserving Functional Invariants:**
+   - *Observation:* `handleSubmit` performs vital session persistence via `/api/auth/login` and hard navigation (`window.location.href`) depending on user role.
+   - *Deduction:* Any visual refactoring must preserve the exact `handleSubmit` function, input bindings (`value={email}`, `onChange`), and redirection branching. No client-side React router navigation (`router.push`) should replace `window.location.href` because Server Components require a clean browser request to receive fresh cookie state.
 
-3. **Acceptance Suite Execution Invariants**:
-   - All tests run against `base_url` (`http://localhost:8080`).
-   - `run.py` sends only one HTTP header per request (the `Cookie` string). No `Authorization: Bearer` headers are used.
-   - The server must run on port 8080.
-   - Because `check_t1_fixtures` analyzes raw HTML from `check_t1_gallery`, server-side rendering is strictly mandatory.
+2. **Obsidian Canvas & Radial Mesh:**
+   - *Observation:* The current wrapper `bg-muted/20` clashes with the Midnight Obsidian Glass theme (`#07090e`).
+   - *Deduction:* Replacing the wrapper with `bg-[#07090e] text-slate-100 min-h-screen relative overflow-hidden` and inserting an ambient radial mesh bloom (`radial-gradient(ellipse 80% 50% at 50% -10%, rgba(56,189,248,0.12), transparent)`) establishes the required high-end dark glass foundation without breaking layout or scrolling.
+
+3. **Glass Container & Focus States:**
+   - *Observation:* The standard `<Card>` is opaque and lacks depth.
+   - *Deduction:* Applying `backdrop-blur-md bg-white/[0.03] border border-white/[0.08] shadow-[0_8px_32px_rgba(0,0,0,0.5)] rounded-2xl` satisfies the glass container requirement.
+   - *Observation:* The email `<Input>` needs electric cyan focus rings.
+   - *Deduction:* Applying `focus-visible:ring-2 focus-visible:ring-cyan-500/40 focus-visible:border-cyan-500/50 bg-white/[0.03] border-white/[0.1]` ensures immediate visual feedback while complying with Section 14 of `frontend-rules.md`.
+
+4. **Role Selector Chips with Luminous Borders:**
+   - *Observation:* Quick-select chips currently use identical, non-distinct styling.
+   - *Deduction:* Map each role to its specific accent palette:
+     - **Organizer:** Amber (`border-amber-500/30 hover:border-amber-500/60`, active `border-amber-500 bg-amber-500/10 shadow-[0_0_16px_rgba(245,158,11,0.25)] text-amber-400 ring-1 ring-amber-500/40`)
+     - **Judge Alpha:** Cyan (`border-cyan-500/30 hover:border-cyan-500/60`, active `border-cyan-500 bg-cyan-500/10 shadow-[0_0_16px_rgba(6,182,212,0.25)] text-cyan-400 ring-1 ring-cyan-500/40`)
+     - **Judge Beta:** Indigo (`border-indigo-500/30 hover:border-indigo-500/60`, active `border-indigo-500 bg-indigo-500/10 shadow-[0_0_16px_rgba(99,102,241,0.25)] text-indigo-400 ring-1 ring-indigo-500/40`)
+     - **Participant:** Emerald (`border-emerald-500/30 hover:border-emerald-500/60`, active `border-emerald-500 bg-emerald-500/10 shadow-[0_0_16px_rgba(16,185,129,0.25)] text-emerald-400 ring-1 ring-emerald-500/40`)
+   - Add `data-selected={email.trim().toLowerCase() === acc.email.toLowerCase()}` to dynamically display the active glow when the account is chosen or typed.
+
+---
+
+### 2.2 Logic Chain for R4: Judge Scoring Workspace Polish
+
+1. **Ergonomic 2-Column Ratio Adjustment:**
+   - *Observation:* The current column split is `lg:col-span-5` (41.7%) and `lg:col-span-7` (58.3%). The spec requests ~35% for project queue and ~65% for scoring console.
+   - *Deduction:* In a 12-column grid, `lg:col-span-4` (33.3%) and `lg:col-span-8` (66.7%) achieves the ~35%/~65% split. Adding `sticky top-20` and `max-h-[calc(100vh-220px)] overflow-y-auto` to the left sidebar allows judges to scroll through all 40 projects without losing sight of the console.
+
+2. **Project Queue Sidebar Polish:**
+   - *Observation:* In a 40-project hackathon, navigating unorganized cards can cause fatigue.
+   - *Deduction:* Add a search input and status tabs (`All`, `Pending`, `Scored`) at the top of the queue sidebar.
+   - *Observation:* Status chips currently use basic badge styles.
+   - *Deduction:* Enhance with high-contrast luminous chips:
+     - `Scored`: Cyan badge (`bg-cyan-500/10 text-cyan-400 border border-cyan-500/30`)
+     - `Pending`: Slate badge (`bg-slate-800 text-slate-400 border border-slate-700`)
+     - Selected item highlight: `bg-cyan-500/10 border-cyan-500/50 shadow-[0_0_20px_rgba(6,182,212,0.15)] ring-1 ring-cyan-500/40`.
+
+3. **Scoring Console Workstation & Live Score Gauge:**
+   - *Observation:* The scoring console currently renders standard card headers.
+   - *Deduction:* Restructure as a developer terminal workstation with a dark header bar (`bg-black/40 border-b border-white/[0.08]`), `⬢ SCORING CONSOLE` monospace title, status indicator, track pill, project ID badge, and external repo button.
+   - *Observation:* Live composite score is currently rendered as `compositeScore / 5.00`.
+   - *Deduction:* Calculate and render a dual-readout score gauge:
+     - Raw weighted average: `compositeScore / 5.00`
+     - Scaled percentage gauge: `(Number(compositeScore) / 5 * 100).toFixed(1) / 100` (e.g. `87.4 / 100`) with an animated glowing gradient bar (`from-cyan-500 to-indigo-500`).
+
+4. **Rubric Criteria Sliders:**
+   - *Observation:* Criteria currently use button arrays (`0..5`). `src/components/ui/slider.tsx` is not installed, and `@radix-ui/react-slider` is not in `package.json`. No new npm packages can be installed.
+   - *Deduction:* Use native HTML5 range sliders (`<input type="range" min={0} max={crit.maxScore} step={0.5} value={val} ... />`) enhanced with custom Tailwind classes (`accent-cyan-400 bg-slate-800 h-2 rounded-lg cursor-pointer focus:ring-2 focus:ring-cyan-500/40`). Retain compact quick-pick buttons (`0, 1, 2, 3, 4, 5`) below the slider for maximum input velocity.
+
+5. **Autosave / Save Indicator & API Integrity:**
+   - *Observation:* Judges need confidence that their evaluations are persisted.
+   - *Deduction:* Add a dirty-state detector comparing `currentScores` and `currentComment` against `scoresMap` and `commentsMap`:
+     - If dirty: `● Unsaved changes` (amber warning)
+     - If saving: `Saving evaluation...` (cyan spinner)
+     - If clean: `✓ Saved to database` (emerald confirmation)
+   - *Observation:* The backend expects an exact payload schema validated by `SubmitScoresSchema`.
+   - *Deduction:* The `POST /api/judge/scores` call must strictly maintain its JSON structure:
+     `{ projectId: string, scores: [{ criterionId: string, value: number }], comment: string }`.
 
 ---
 
 ## 3. Caveats
 
-1. **Server Liveness Dependency**:
-   When testing `run.py`, the Next.js server (`next dev -p 8080` or `next start -p 8080`) must be actively listening on port 8080. If the server is offline, requests hang for 10 seconds per check (70 seconds total) before failing with `got no response`.
-2. **`run.py` Loose vs Spec Strictness**:
-   `run.py` does not parse the JSON structure of `/api/judge/scores` or verify the `Content-Type` header of `/api/export.csv`. However, project specifications (R1, R2, R3 in `ORIGINAL_REQUEST.md`) require strict Zod validation, AuditLog insertion, and RFC-compliant CSV headers with UTF-8 encoding. Implementations must follow the stricter specification.
-3. **Empty Database / Re-seeding**:
-   If the database is reset without running `npm run seed`, `user_jdg_a_01` and the test tokens will not exist, causing 401 failures on all authenticated checks.
+1. **Slider Dependency Invariant:**
+   - *No new dependencies:* Radix UI slider is not installed in `package.json`. The implementer must NOT run `npm install @radix-ui/react-slider`. The native `<input type="range">` with Tailwind accent and glass styling provides 100% offline, zero-dependency compatibility and meets all spec requirements.
+
+2. **Hard Navigation Requirement:**
+   - *No Next.js `router.push`:* In `src/app/login/page.tsx`, `window.location.href` must be retained. Client-side Next.js route transitions can fail to re-trigger Server Component auth guards immediately because server session cookies are read at request inception.
+
+3. **Offline Environment:**
+   - *No Google Fonts or CDNs:* All fonts (`GeistSans`, `GeistMono`) are bundled locally. All icons must come from `lucide-react`.
 
 ---
 
-## 4. Conclusion
+## 4. Conclusion & Recommended Action Plan
 
-1. **Checker Suitability**: `Hack_docs/run.py` is a zero-dependency standard-library script that enforces 3 T1 checks and 4 T2 checks sequentially. All checks rely exclusively on single `Cookie` headers and status code comparisons, except the CSV export which validates a comma on line 1.
-2. **Config Alignment**: `.dogfood.toml` is correctly configured:
-   - `peer_scores = "/api/judge/scores?judge=user_jdg_a_01"` exactly matches `judge_a`'s seeded DB user ID (`user_jdg_a_01`).
-   - Deterministic test session tokens match DB seed entries.
-3. **Implementation Blueprint for Phase 3**:
-   - Implement `src/app/api/judge/scores/route.ts`:
-     - `GET`: Authenticate session. Reject non-judges with 403. Check `?judge=` query param; if present and `!== session.id`, return 403. Otherwise return judge's scores (200).
-     - `POST`: Authenticate judge. Validate score payload with Zod. Verify track assignment. Upsert score. Record `AuditLog` entry. Return 201/200.
-   - Implement `src/app/api/export.csv/route.ts`:
-     - `GET`: Authenticate session. Reject non-organizers with 403. Query all projects, tracks, rubric criteria, and scores. Apply MAD normalization via `src/lib/normalization.ts`. Return CSV with header on line 1 and `Content-Type: text/csv; charset=utf-8` (200).
+### 4.1 R3: Action Plan for `src/app/login/page.tsx`
+1. Update `TEST_ACCOUNTS` roles to `Organizer`, `Judge Alpha`, `Judge Beta`, `Participant`.
+2. Wrap page in obsidian canvas (`bg-[#07090e]`) with radial ambient mesh.
+3. Replace Card container with glass wrapper (`backdrop-blur-md bg-white/[0.03] border-white/[0.08] rounded-2xl`).
+4. Apply electric cyan focus ring to email input (`focus-visible:ring-cyan-500/40 focus-visible:border-cyan-500/50`).
+5. Redesign test account chips into luminous 2x2 grid with `data-selected` and role-specific colors (amber, cyan, indigo, emerald).
+6. Preserve `handleSubmit`, POST call, error banner, and `window.location.href` redirects.
+
+### 4.2 R4: Action Plan for `src/app/judge/`
+1. In `src/app/judge/page.tsx`, polish the "Access Restricted" screen with obsidian glass styling while maintaining the existing server query and prop serialization.
+2. In `src/app/judge/judge-portal-client.tsx`, update grid to ~35% (`lg:col-span-4`) left queue and ~65% (`lg:col-span-8`) right console, stacking vertically on mobile.
+3. Implement glass sidebar for project queue with search/filter tabs, `sticky top-20`, scroll containment, and cyan/slate status chips.
+4. Redesign scoring console with terminal header `⬢ SCORING CONSOLE`, track badge, project summary, and live dual-readout composite score gauge (`87.4 / 100` and `4.37 / 5.00`).
+5. Replace discrete buttons with interactive range sliders (`<input type="range">`) with live numeric score readouts and quick-step buttons.
+6. Add real-time save state indicator (`Unsaved changes` / `Saving...` / `Saved to database`).
+7. Keep POST `/api/judge/scores` payload and server RBAC validation completely intact.
 
 ---
 
 ## 5. Verification Method
 
-To independently verify the acceptance checker and configuration:
+To independently verify the implementation after applying changes:
 
-1. **Verify Database IDs**:
+1. **Static Analysis & Type Checking:**
    ```powershell
-   node -e "const { PrismaClient } = require('@prisma/client'); const prisma = new PrismaClient(); async function check() { const u = await prisma.user.findUnique({ where: { email: 'judge_a@dogfood.dev' } }); console.log(u); await prisma.\`$disconnect(); } check();"
+   npm run typecheck
+   npm run lint
    ```
-   *Expected Output*: `{ id: 'user_jdg_a_01', email: 'judge_a@dogfood.dev', role: 'judge', ... }`
+   *Expected result:* 0 errors, 0 warnings.
 
-2. **Verify .dogfood.toml Query Parameter**:
-   Inspect `.dogfood.toml` line 18:
-   `peer_scores = "/api/judge/scores?judge=user_jdg_a_01"`
-
-3. **Verify Full Checker Run (when server is running on port 8080)**:
+2. **Automated Acceptance Suite:**
    ```powershell
-   python Hack_docs\run.py .dogfood.toml
+   # Ensure server is running on port 8080:
+   npm run build; npm run start
+   # Run acceptance checker:
+   python Hack_docs/run.py .dogfood.toml
    ```
-   *Expected Output upon Phase 3 completion*:
-   ```
-   DOGFOOD 2026 acceptance report
-   portal: http://localhost:8080
-   claimed: T1 T2
-   fixtures: ...\fixtures.json
+   *Expected result:* All 7 checks PASS (T1 + T2):
+   - `T1 gallery is public .... PASS`
+   - `T1 project from fixtures shown .... PASS`
+   - `T1 closed event refuses submissions .... PASS`
+   - `T2 judge sees own scores .... PASS`
+   - `T2 judge cannot see peer scores .... PASS`
+   - `T2 participant blocked .... PASS`
+   - `T2 csv export works .... PASS`
 
-   T1  gallery is public ................. PASS
-   T1  project from fixtures shown ....... PASS
-   T1  closed event refuses submissions .. PASS
-   T2  judge sees own scores ............. PASS
-   T2  judge cannot see peer scores ...... PASS
-   T2  participant blocked ............... PASS
-   T2  csv export works .................. PASS
-
-   claimed T1 T2, verified T1 T2
+3. **Phase 3 Adversarial Security Suite:**
+   ```powershell
+   python tests/test_phase3_adversarial.py
    ```
-4. **Invalidation Condition**:
-   If `peer_scores` in `.dogfood.toml` uses an ID other than `user_jdg_a_01`, or if `/api/judge/scores` fails to return 403 on mismatched judge query params, `check_t2_peer_scores` will fail.
+   *Expected result:* All 47 probes pass, verifying RBAC isolation and POST score integrity.
+
+4. **Visual Inspection:**
+   - Navigate to `http://localhost:8080/login`: Verify obsidian canvas, ambient glow, glass card, electric cyan focus ring, and luminous role selector chips.
+   - Click "Judge Alpha" chip: Verify active cyan glow and that email field updates to `judge_a@dogfood.dev`.
+   - Click "Sign In": Verify redirect to `http://localhost:8080/judge`.
+   - On `/judge`: Verify 2-column layout (~35% queue, ~65% console), terminal header `⬢ SCORING CONSOLE`, live score gauge recalculating on slider move, and save indicator updating on submit.

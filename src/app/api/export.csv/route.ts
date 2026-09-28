@@ -171,7 +171,7 @@ export async function GET(req: NextRequest) {
     status: 200,
     headers: {
       'Content-Type': 'text/csv; charset=utf-8',
-      'Content-Disposition': 'attachment; filename="dogfood_scores.csv"',
+      'Content-Disposition': 'attachment; filename="omnijudge_scores.csv"',
       'Cache-Control': 'no-store, max-age=0',
     },
   });

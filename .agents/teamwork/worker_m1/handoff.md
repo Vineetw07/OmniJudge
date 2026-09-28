@@ -1,212 +1,124 @@
-# Handoff Report: Worker M1 (Foundation Scaffold & Full Dependencies)
+# Handoff Report: Milestone 1 — Global Design System & Glass Navbar
 
-**Agent**: Worker M1 (Role: implementer, qa, specialist)  
-**Parent**: Orchestrator Phase 1 (`d13cfa1c-1a99-4f0b-be8e-29a865a627fb`)  
-**Working Directory**: `d:\TP\Hackathon\DogFood\.agents\teamwork\worker_m1`  
-**Date**: 2026-09-27T07:20:00Z  
+**Agent**: Worker M1 (Global Design System — Midnight Obsidian Glass & Glass Navbar)  
+**Milestone**: Phase 5 Round 1 (Milestone 1)  
+**Date**: 2026-09-28T10:57:30Z  
+**Target Files Modified / Created**:
+- `src/app/globals.css` (Updated)
+- `src/app/layout.tsx` (Updated)
+- `src/components/Navbar.tsx` (Created)
+- `src/components/PageTransition.tsx` (Created)
 
 ---
 
 ## 1. Observation
 
-1. **Pre-existing File Preservation**:
-   - Pre-existing files in `d:\TP\Hackathon\DogFood` were verified before and after scaffolding:
-     - `Hack_docs/` (`context.txt`, `example.dogfood.toml`, `fixtures.json`, `run.py`, `spec.md`)
-     - `PROGRESS.md`
-     - `Claude_chats.txt`
-     - `dogfood_build_plan.md`
-     - `.agents/`
-   - All files remained intact with identical contents and timestamps throughout the scaffolding process.
-
-2. **Next.js 14 Scaffolding & Git Init**:
-   - `npx create-next-app@14 staging_cna --typescript --tailwind --eslint --app --src-dir --import-alias "@/*" --no-git --yes` completed with exit code 0 (`next@14.2.35`).
-   - Scaffolded files were moved into `d:\TP\Hackathon\DogFood` without overwriting pre-existing files, and `staging_cna` was removed.
-   - `git init` executed in `d:\TP\Hackathon\DogFood` with output:
-     `Initialized empty Git repository in D:/TP/Hackathon/DogFood/.git/` (exit code 0).
-
-3. **Dependencies Installation**:
-   - Production packages installed: `prisma@5.22.0`, `@prisma/client@5.22.0`, `zod`, `framer-motion`, `lucide-react`, `class-variance-authority`, `clsx`, `tailwind-merge`.
-   - Dev packages installed: `tsx`, `better-sqlite3`, `@types/better-sqlite3`, `@types/node`.
-   - Observation on Prisma versions: The npm registry tag `latest` resolved to `8.0.0-rc.17` which altered CLI commands and lacked `--datasource-provider`. Installing pinned `5.22.0` (as recommended by Explorer 2) restored standard Prisma CLI behavior.
-
-4. **shadcn UI Setup & 15 Components**:
-   - `npx shadcn@latest init --defaults --yes` completed with exit code 0, creating `components.json`, `src/lib/utils.ts`, and base styles.
-   - `npx shadcn@latest add button card badge input label textarea select table dialog sheet tabs avatar progress separator dropdown-menu --yes` executed with exit code 0, producing all 15 components in `src/components/ui/`:
-     - `avatar.tsx` (3,028 bytes)
-     - `badge.tsx` (1,915 bytes)
-     - `button.tsx` (3,230 bytes)
-     - `card.tsx` (2,620 bytes)
-     - `dialog.tsx` (4,066 bytes)
-     - `dropdown-menu.tsx` (8,726 bytes)
-     - `input.tsx` (1,030 bytes)
-     - `label.tsx` (508 bytes)
-     - `progress.tsx` (1,730 bytes)
-     - `select.tsx` (6,645 bytes)
-     - `separator.tsx` (535 bytes)
-     - `sheet.tsx` (4,424 bytes)
-     - `table.tsx` (2,392 bytes)
-     - `tabs.tsx` (3,487 bytes)
-     - `textarea.tsx` (832 bytes)
-
-5. **Layout Sanitization**:
-   - Initial `src/app/layout.tsx` contained `import { Geist } from "next/font/google"`, which fails under Next.js 14.
-   - Sanitized `src/app/layout.tsx` to utilize local font definitions (`src/app/fonts/GeistVF.woff` and `GeistMonoVF.woff`), removing the invalid import.
-
-6. **Prisma Initialization**:
-   - `npx prisma init --datasource-provider sqlite` completed with exit code 0, creating `prisma/schema.prisma` configured with:
-     ```prisma
-     generator client {
-       provider = "prisma-client-js"
-     }
-
-     datasource db {
-       provider = "sqlite"
-       url      = env("DATABASE_URL")
-     }
+1. **Initial State of `src/app/globals.css`**:
+   - Lines 66–145 previously configured light OKLCH colors (`--background: oklch(1 0 0);`) in `:root` and lacked glass surface variables.
+2. **Initial State of `src/app/layout.tsx`**:
+   - `<html lang="en">` lacked `className="dark"`.
+   - The body rendered `{children}` directly without a global navigation bar, ambient radial bloom, or page entrance animation container. Local font imports (`next/font/local`) in lines 5–14 were intact.
+3. **`lucide-react` Package Capabilities**:
+   - Confirmed via `node -e "const lucide = require('lucide-react'); console.log('Github:', !!lucide.Github);"`: returned `Github: false`. `lucide-react` v1.48.0 does not export `Github`.
+4. **`framer-motion` Export Verification**:
+   - Confirmed via `node -e "const fm = require('framer-motion'); console.log('motion:', !!fm.motion, 'useReducedMotion:', !!fm.useReducedMotion)"`: returned `motion: true useReducedMotion: true`.
+5. **Verification Commands**:
+   - `npm run typecheck` returned code 0:
      ```
-
-7. **Configuration Files and Scripts**:
-   - `package.json` scripts configured:
-     ```json
-     "scripts": {
-       "dev": "next dev -p 8080",
-       "build": "next build",
-       "start": "next start -p 8080",
-       "seed": "npx tsx src/lib/seed.ts",
-       "db:migrate": "npx prisma migrate dev",
-       "db:push": "npx prisma db push",
-       "typecheck": "tsc --noEmit",
-       "lint": "next lint"
-     }
+     > dogfood@0.1.0 typecheck
+     > tsc --noEmit
      ```
-   - `next.config.mjs` configured with `output: 'standalone'`.
-   - `.env` configured with `DATABASE_URL="file:./prisma/dogfood.db"`.
-   - `.env.example` created with `DATABASE_URL="file:./prisma/dogfood.db"`.
-   - `.gitignore` configured to ignore `node_modules`, `.next`, `.env`, `prisma/*.db*`, `*.db-journal`, `*.db-wal`, while unignoring `!.env.example`. Tested with `git check-ignore -v .env .env.example`.
-   - `LICENSE` created with full MIT license text, year 2026, and copyright holder `DOGFOOD 2026 Contributors`.
+   - `npm run lint` returned code 0:
+     ```
+     > dogfood@0.1.0 lint
+     > next lint
 
-8. **Verification Command Results**:
-   - `npm run typecheck` (`tsc --noEmit`): exit code 0, 0 errors.
-   - `npm run lint` (`next lint`): exit code 0 (`✔ No ESLint warnings or errors`).
-   - `npx prisma validate`: exit code 0 (`The schema at prisma\schema.prisma is valid 🚀`).
-   - Automated 35-check test suite: 35/35 checks PASSED, exit code 0.
+     ✔ No ESLint warnings or errors
+     ```
+   - `npm run build` returned code 0:
+     ```
+     Creating an optimized production build ...
+     ✓ Compiled successfully
+     Linting and checking validity of types ...
+     Collecting page data ...
+     ✓ Generating static pages (9/9)
+     Finalizing page optimization ...
+     Collecting build traces ...
+     ```
+6. **Git Commit Execution**:
+   - Executed: `git add src/app/globals.css src/app/layout.tsx src/components/Navbar.tsx src/components/PageTransition.tsx ; git commit -m "[Phase5-R1] Midnight Obsidian global design system, glass navbar, Framer Motion page entrance"`
+   - Result:
+     ```
+     [master 4c5c5a2] [Phase5-R1] Midnight Obsidian global design system, glass navbar, Framer Motion page entrance
+      4 files changed, 241 insertions(+), 67 deletions(-)
+      create mode 100644 src/components/Navbar.tsx
+      create mode 100644 src/components/PageTransition.tsx
+     ```
 
 ---
 
 ## 2. Logic Chain
 
-1. **Scaffold Non-Interference**: Because `create-next-app` aborts if the destination directory contains non-whitelisted files (such as `Hack_docs` and `PROGRESS.md`), scaffolding was directed to `staging_cna` within the workspace boundary and moved into the project root. This satisfied both file-preservation and tool invariants (Obs 1, Obs 2).
-2. **Version Pinning Rationale**: In year 2026, `npm install prisma` resolved to pre-release 8.x RC by default, which broke the `--datasource-provider` option in `prisma init`. Pinned installation of `prisma@5.22.0` and `@prisma/client@5.22.0` ensured full compatibility with Next.js 14 and the hackathon SQLite specification (Obs 3, Obs 6).
-3. **TypeScript Cleanliness**: `shadcn init` injected `Geist` from `next/font/google`, which is absent in Next.js 14. Removing that import and relying on local fonts preserved typography without compiler diagnostics, yielding clean `tsc --noEmit` execution (Obs 5, Obs 8).
-4. **Specification Conformance**: All 15 required UI components, exact `package.json` scripts (including port 8080 dev/start), `.env` / `.env.example`, `.gitignore`, `LICENSE`, and `output: 'standalone'` match the Milestone 1 contract (Obs 4, Obs 7, Obs 8).
+1. **Obsidian Palette Synchronization**:
+   - In accordance with R1, `:root` and `.dark` blocks in `src/app/globals.css` were updated to define `--background: #07090e` and `--card: #0a0d14` along with electric sky accent tokens (`--primary: #38bdf8`) and border tokens. Glass tokens (`--glass-bg: rgba(255, 255, 255, 0.04);`, `--glass-border: rgba(255, 255, 255, 0.08);`, `--glass-border-accent: rgba(56, 189, 248, 0.3);`) and the `.glass-card` utility were declared.
+   - Setting these in `:root` guarantees dark obsidian aesthetics across all downstream shadcn UI primitives regardless of class inheritance.
+2. **Ambient Bloom Layer**:
+   - An ambient bloom `<div aria-hidden="true">` with `radial-gradient(ellipse 80% 50% at 50% -10%, rgba(56, 189, 248, 0.12), transparent)` was placed as a fixed layer (`fixed inset-0 pointer-events-none -z-10`) in `src/app/layout.tsx`.
+   - This ensures glowing cyan illumination across the top of all pages without intercepting user clicks or obscuring content.
+3. **Modular Client Components**:
+   - `src/components/Navbar.tsx` was marked `'use client'` to support `usePathname()`. Nav links (`/projects`, `/judge`, `/dashboard`) dynamically illuminate with cyan highlights when active.
+   - To address Observation 3 (no `Github` export in `lucide-react`), an inline SVG conforming to Feather/Lucide geometry was created.
+   - The sign-in CTA links to `/login` using the existing UI `Button` component styled for glass aesthetics.
+4. **Accessible Page Motion**:
+   - `src/components/PageTransition.tsx` was implemented using Framer Motion `<motion.div>` animating `opacity: 0, y: 10` to `opacity: 1, y: 0` with `duration: 0.35, ease: "easeOut"`.
+   - `useReducedMotion()` is queried; when true, opacity transitions instantly without translation, adhering to Pillar 14 of `frontend-rules.md`.
+5. **Zero-Network Invariant**:
+   - Local fonts (`GeistVF.woff` and `GeistMonoVF.woff`) in `src/app/layout.tsx` were left completely untouched. No external CDN links were introduced.
 
 ---
 
 ## 3. Caveats
 
-1. **Prisma Models (Milestone 2 Scope)**: `prisma/schema.prisma` currently has the initialized template provider and datasource models. The 11 domain models (User, Session, Event, Track, Team, etc.) and migrations belong to Milestone 2.
-2. **Better-sqlite3 on Windows**: `@types/better-sqlite3` is a TypeScript declaration package with no JS main file. Tools resolving modules at runtime should inspect its `package.json` rather than requiring JS entry points.
+- **Page-level Headers**: `src/app/projects/page.tsx` still contains a local header (`<header>` with DOGFOOD 2026 title and local Sign In button) from Phase 2, which will be refactored by Worker M2 as part of the public project gallery polish.
+- **Port 8080 Process**: The production daemon on port 8080 was not running during this worker's turn; full live browser verification against port 8080 can be conducted during freeze rehearsal or when the dev server is active.
 
 ---
 
 ## 4. Conclusion
 
-Milestone 1 is complete, verified, and ready for Milestone 2 (Prisma Schema & Migrations).
-- Clean Next.js 14 App Router project established.
-- All production and dev dependencies installed and resolvable.
-- All 15 shadcn UI components installed in `src/components/ui/`.
-- `layout.tsx` sanitized; zero TypeScript errors on `npm run typecheck`.
-- Prisma initialized for SQLite with schema validation passing.
-- Exact scripts, `.env`, `.env.example`, `.gitignore`, `LICENSE`, and standalone build configuration verified.
+Milestone 1 is complete. The Midnight Obsidian design system, glass surface variables, sticky glass navbar with active route detection and inline GitHub SVG, Framer Motion page entrance container, and updated root layout have all been implemented, verified, and committed.
+
+- TypeScript check: 0 errors
+- ESLint check: 0 errors
+- Production build: Succeeded (code 0)
+- Git commit created: `4c5c5a2`
 
 ---
 
 ## 5. Verification Method
 
-To independently verify Milestone 1 completion, run the following commands from `d:\TP\Hackathon\DogFood`:
+To independently verify this milestone:
 
-```powershell
-# 1. TypeScript compilation check (Must return exit code 0 with 0 errors)
-npm run typecheck
+1. **Verify Git History**:
+   ```powershell
+   git log -1 --stat
+   ```
+   Expect commit `[Phase5-R1] Midnight Obsidian global design system, glass navbar, Framer Motion page entrance` modifying `src/app/globals.css`, `src/app/layout.tsx`, `src/components/Navbar.tsx`, and `src/components/PageTransition.tsx`.
 
-# 2. ESLint check (Must return exit code 0 with 0 errors)
-npm run lint
+2. **TypeScript Compilation**:
+   ```powershell
+   npm run typecheck
+   ```
+   Expect exit code 0 with 0 errors.
 
-# 3. Prisma schema check (Must report schema is valid)
-npx prisma validate
+3. **Linter Check**:
+   ```powershell
+   npm run lint
+   ```
+   Expect `✔ No ESLint warnings or errors`.
 
-# 4. Automated 35-check test suite
-@'
-const fs = require('fs');
-const path = require('path');
-const root = process.cwd();
-const results = [];
-function test(name, fn) {
-  try {
-    const res = fn();
-    results.push({ check: name, status: res === true ? 'PASS' : 'FAIL', details: res === true ? 'OK' : String(res) });
-  } catch (err) {
-    results.push({ check: name, status: 'FAIL', details: err.message });
-  }
-}
-test('Preserved directory: Hack_docs', () => fs.existsSync(path.join(root, 'Hack_docs', 'fixtures.json')));
-test('Preserved file: PROGRESS.md', () => fs.existsSync(path.join(root, 'PROGRESS.md')));
-test('Preserved file: Claude_chats.txt', () => fs.existsSync(path.join(root, 'Claude_chats.txt')));
-test('Directory src/app exists', () => fs.existsSync(path.join(root, 'src', 'app')));
-test('Directory src/lib exists', () => fs.existsSync(path.join(root, 'src', 'lib')));
-test('File exists: package.json', () => fs.existsSync(path.join(root, 'package.json')));
-test('File exists: components.json', () => fs.existsSync(path.join(root, 'components.json')));
-test('File exists: tailwind.config.ts', () => fs.existsSync(path.join(root, 'tailwind.config.ts')));
-test('File exists: postcss.config.mjs', () => fs.existsSync(path.join(root, 'postcss.config.mjs')));
-test('File exists: tsconfig.json', () => fs.existsSync(path.join(root, 'tsconfig.json')));
-test('File exists: .env', () => fs.existsSync(path.join(root, '.env')));
-test('File exists: .env.example', () => fs.existsSync(path.join(root, '.env.example')));
-test('File exists: .gitignore', () => fs.existsSync(path.join(root, '.gitignore')));
-test('File exists: LICENSE', () => fs.existsSync(path.join(root, 'LICENSE')));
-test('Next.js is version 14.x', () => {
-  const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
-  return pkg.dependencies?.next?.includes('14') ? true : 'Not 14.x';
-});
-test('All production packages resolvable', () => {
-  ['prisma', '@prisma/client', 'zod', 'framer-motion', 'lucide-react', 'class-variance-authority', 'clsx', 'tailwind-merge'].forEach(p => require.resolve(p, { paths: [root] }));
-  return true;
-});
-test('All dev packages resolvable', () => {
-  ['tsx', 'better-sqlite3', '@types/better-sqlite3', '@types/node'].forEach(p => {
-    require.resolve(p.startsWith('@types/') ? `${p}/package.json` : p, { paths: [root] });
-  });
-  return true;
-});
-['button','card','badge','input','label','textarea','select','table','dialog','sheet','tabs','avatar','progress','separator','dropdown-menu'].forEach(comp => {
-  test(`shadcn UI component: ${comp}.tsx exists`, () => fs.existsSync(path.join(root, 'src', 'components', 'ui', `${comp}.tsx`)));
-});
-test('shadcn utils helper: src/lib/utils.ts exists', () => fs.existsSync(path.join(root, 'src', 'lib', 'utils.ts')));
-test('package.json scripts match specification', () => {
-  const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
-  const s = pkg.scripts || {};
-  const required = {
-    "dev": "next dev -p 8080", "build": "next build", "start": "next start -p 8080",
-    "seed": "npx tsx src/lib/seed.ts", "db:migrate": "npx prisma migrate dev",
-    "db:push": "npx prisma db push", "typecheck": "tsc --noEmit"
-  };
-  for (const [k, v] of Object.entries(required)) {
-    if (s[k] !== v) return `Script mismatch for '${k}'`;
-  }
-  return true;
-});
-test('tsconfig.json has @/* alias configured', () => {
-  const ts = JSON.parse(fs.readFileSync(path.join(root, 'tsconfig.json'), 'utf8'));
-  return !!ts.compilerOptions?.paths?.['@/*'];
-});
-console.table(results);
-const allPass = results.every(r => r.status === 'PASS');
-console.log(`\nOVERALL: ${allPass ? 'ALL CHECKS PASSED (Milestone 1 Ready)' : 'CHECKS FAILED'}`);
-process.exit(allPass ? 0 : 1);
-'@ | node
-```
-
-**Invalidation Conditions**:
-- If `Hack_docs/`, `PROGRESS.md`, or `Claude_chats.txt` are deleted or corrupted.
-- If `npm run typecheck` produces any compilation errors.
-- If any of the 15 shadcn components are missing from `src/components/ui/`.
-- If any required script in `package.json` is missing or port 8080 is omitted.
+4. **Production Build**:
+   ```powershell
+   npm run build
+   ```
+   Expect successful build with static and dynamic routes compiled.

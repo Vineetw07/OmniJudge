@@ -16,8 +16,8 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "DOGFOOD 2026",
-  description: "Hackathon submission and judging platform",
+  title: "OmniJudge",
+  description: "Autonomous hackathon submission and judging platform",
 };
 
 import { getServerSession } from "@/lib/auth";

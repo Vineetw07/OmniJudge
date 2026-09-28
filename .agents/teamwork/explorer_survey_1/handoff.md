@@ -1,191 +1,733 @@
-# Phase 3 (T2 Judging) Codebase & Database Schema Survey Report
+# Handoff Report: Global Design System & Public Project Gallery Survey
 
-**Agent**: Survey Explorer 1 (`explorer_survey_1`)  
-**Role**: Codebase & Database Schema Explorer  
-**Date**: 2026-09-27T09:45:00Z  
-**Target Milestone**: Phase 3 — T2 Judging  
+**Explorer**: Survey Explorer 1 (Global Design System & Project Gallery)  
+**Milestone**: Phase 5 (Midnight Obsidian Glass UI Polish & Freeze Rehearsal)  
+**Date**: 2026-09-28T10:55:00Z  
+**Target Files**:
+- `src/app/globals.css`
+- `src/app/layout.tsx`
+- `src/components/Navbar.tsx` (New Component)
+- `src/components/PageTransition.tsx` (New Component)
+- `src/app/projects/page.tsx`
+- `src/app/projects/projects-client.tsx` (New Component)
 
 ---
 
 ## 1. Observation
 
-### 1.1 Authentication & Session Resolution (`src/lib/auth.ts`)
-- **File location**: `d:\TP\Hackathon\DogFood\src\lib\auth.ts` (74 lines).
-- **SessionUser type** (lines 8–14):
-  ```typescript
-  export type SessionUser = {
-    id: string;
-    email: string;
-    name: string;
-    role: 'visitor' | 'participant' | 'judge' | 'organizer' | 'admin';
-    judgeId?: string;
-  };
+### 1.1 `src/app/globals.css` (Current State)
+- **Lines 66–105**: `:root` defines light theme palette using OKLCH (`--background: oklch(1 0 0);`, `--card: oklch(1 0 0);`, etc.). Pure white background is active by default.
+- **Lines 106–145**: `.dark` defines dark mode OKLCH tokens, but the root theme defaults to light if `dark` class is missing from `<html>`.
+- **Missing tokens**: Glass tokens (`--glass-bg`, `--glass-border`, `--glass-border-accent`, `--glass-glow`) do not exist.
+- **Lines 149–151**: `body { @apply bg-background text-foreground; }` and `html { @apply font-sans; }`.
+
+### 1.2 `src/app/layout.tsx` (Current State)
+- **Lines 27–33**:
+  ```tsx
+  export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+    return (
+      <html lang="en">
+        <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+          {children}
+        </body>
+      </html>
+    );
+  }
   ```
-- **Session retrieval logic** (lines 24–48):
-  - `getSession(req: NextRequest): Promise<SessionUser | null>`
-  - First attempts `req.cookies.get('session')?.value` (line 26–27).
-  - Robust fallback: calls `extractSessionFromCookieHeader(cookieHeader)` (line 27 & lines 54–58), matching regex `/(?:^|;\s*)session=([^;]+)/`. This handles raw `Cookie: session=<token>` headers sent directly by python's `urllib.request` in `run.py` or curl.
-  - Queries database: `prisma.session.findUnique({ where: { id: token }, include: { user: true } })` (lines 31–34).
-  - **Expiry validation**: Line 37 directly checks:
-    ```typescript
-    if (session.expiresAt < new Date()) return null;
-    ```
-    Expiry is strictly enforced against server timestamp.
-  - **User role & judgeId**: Line 39 casts `session.user.role as SessionUser['role']`. Line 46 conditionally sets `judgeId: role === 'judge' ? session.user.id : undefined`.
-  - **Role guard helpers** (lines 63–73): `isOrganizer(user)`, `isJudge(user)`, `isParticipant(user)`.
-- **Limitation**: `getSession(req)` strictly expects `NextRequest`. Server Component pages (`page.tsx`) in Next.js App Router do not have `NextRequest` in their props and cannot invoke this function directly without a helper reading `cookies()` from `next/headers`.
+- **Class omission**: `<html lang="en">` does NOT have class `dark`.
+- **Zero layout chrome**: There is no navbar, no ambient top glow, and no Framer Motion page entrance animation.
+- **Font isolation**: Fonts are imported strictly via `localFont` (`GeistVF.woff` and `GeistMonoVF.woff` in `src/app/fonts/`), adhering 100% to the Zero-Network Invariant.
 
-### 1.2 Seed Script & Prisma Singleton (`src/lib/seed.ts` & `src/lib/prisma.ts`)
-- **`src/lib/prisma.ts`** (19 lines): Exports `prisma` singleton attached to `globalThis` in development to survive HMR module reload.
-- **`src/lib/seed.ts`** (264 lines):
-  - **4 Deterministic Test Users** (lines 10–39):
-    1. Organizer: id `'user_org_01'`, email `'organizer@dogfood.dev'`, name `'Organizer'`, role `'organizer'`, token `'org_seed_token_2026'`
-    2. Judge Alpha: id `'user_jdg_a_01'`, email `'judge_a@dogfood.dev'`, name `'Judge Alpha'`, role `'judge'`, token `'jdg_a_seed_token_2026'`, assigned track `'trk_01'` (lines 230–237)
-    3. Judge Beta: id `'user_jdg_b_01'`, email `'judge_b@dogfood.dev'`, name `'Judge Beta'`, role `'judge'`, token `'jdg_b_seed_token_2026'`, assigned track `'trk_02'` (lines 239–246)
-    4. Participant: id `'user_prt_01'`, email `'participant@dogfood.dev'`, name `'Participant'`, role `'participant'`, token `'prt_seed_token_2026'`
-  - **Session expiry**: Hardcoded to 1 year in the future (`expiresAt.setFullYear(expiresAt.getFullYear() + 1)`, lines 212–213).
-  - **Fixtures Seeding**:
-    - Event: `evt_01` ("Sample Hack 2026"), `submissionsClose = "2026-03-01T18:00:00Z"` (already in past).
-    - Tracks: 8 tracks (`trk_01` to `trk_08`).
-    - Teams: 40 teams (`tm_01` to `tm_40`).
-    - Projects: 41 projects (`prj_01` to `prj_41`).
-    - Judges: 30 fixture judges (`jdg_01` to `jdg_30`), each seeded with role `'judge'` and `JudgeAssignment` records per track in `judge.tracks`.
-    - Rubric Criteria (lines 42–47):
-      - `functionality`: weight 1.5, maxScore 5
-      - `quality`: weight 1.0, maxScore 5
-      - `creativity`: weight 1.0, maxScore 5
-      - `presentation`: weight 0.5, maxScore 5
-    - Scores: 252 score records seeded from `fixtures.scores` for judges `jdg_01`..`jdg_30`.
-    - **Current Live DB State**:
-      - `users count`: 34 (30 fixture judges + 4 test accounts)
-      - `projects count`: 41
-      - `scores count`: 252
-      - `judge_a scores count`: 0 (Judge Alpha has not submitted any scores yet)
-      - `rubric criteria`: 4 rows
-      - `audit logs count`: 0
+### 1.3 `lucide-react` Icon Inspection (Critical Discovery)
+- A runtime inspection of the installed `lucide-react` package (v1.48.0) revealed:
+  ```powershell
+  node -e "const lucide = require('lucide-react'); console.log('Github:', !!lucide.Github);"
+  # Output: Github: false
+  ```
+- `lucide-react` does NOT export a `Github` component. Attempting `import { Github } from 'lucide-react'` will trigger a fatal Next.js compilation / build error (`export 'Github' was not found in 'lucide-react'`).
+- Available related icons include `GitBranch`, `GitFork`, `GitCommit`, `Code2`, etc.
+- To provide an authentic, pixel-perfect GitHub mark without third-party dependencies, an inline SVG conforming to Feather/Lucide conventions must be used.
 
-### 1.3 Database Models & Schema Constraints (`prisma/schema.prisma`)
-The schema contains 11 models:
-1. `User`: `id` (String @id @default(cuid())), `email` (String @unique), `name` (String), `role` (String), `createdAt` (DateTime @default(now())). Relations: `sessions`, `teamMember`, `judgeAssignments`, `scores`, `auditLogs`.
-2. `Session`: `id` (String @id - token itself), `userId` (String), `user` (User), `createdAt` (DateTime @default(now())), `expiresAt` (DateTime).
-3. `Event`: `id` (String @id), `name` (String), `submissionsClose` (DateTime), `createdAt` (DateTime @default(now())). Relations: `tracks`, `projects`.
-4. `Track`: `id` (String @id), `name` (String), `eventId` (String), `event` (Event). Relations: `projects`, `judgeAssignments`.
-5. `Team`: `id` (String @id), `name` (String). Relations: `members`, `projects`.
-6. `TeamMember`: `id` (String @id @default(cuid())), `userId` (String @unique), `teamId` (String). Relations: `user`, `team`.
-7. `Project`: `id` (String @id), `teamId` (String), `trackId` (String), `eventId` (String), `title` (String), `summary` (String), `repoUrl` (String), `submittedAt` (DateTime), `isDraft` (Boolean @default(false)). Relations: `team`, `track`, `event`, `scores`.
-8. `RubricCriterion`: `id` (String @id @default(cuid())), `name` (String), `weight` (Float @default(1.0)), `maxScore` (Int @default(5)). Relations: `scores`.
-9. `JudgeAssignment`: `id` (String @id @default(cuid())), `userId` (String), `trackId` (String). Relations: `user`, `track`.  
-   *Constraint Note*: No `@unique([userId, trackId])` composite constraint exists in the schema.
-10. `Score`: `id` (String @id @default(cuid())), `judgeId` (String), `projectId` (String), `criterionId` (String), `value` (Float), `comment` (String @default("")), `submittedAt` (DateTime @default(now())). Relations: `judge` (User), `project` (Project), `criterion` (RubricCriterion).  
-   *Constraint Note*: No `@unique([judgeId, projectId, criterionId])` composite constraint exists in the schema. Multiple rows could be created for the same criterion if not prevented at the application level.
-11. `AuditLog`: `id` (String @id @default(cuid())), `userId` (String), `action` (String), `payload` (String @default("{}")), `createdAt` (DateTime @default(now())). Relation: `user` (User).
+### 1.4 `src/app/projects/page.tsx` (Current State & Invariant)
+- **Lines 16–25**:
+  ```tsx
+  export default async function ProjectsPage() {
+    const projects = await prisma.project.findMany({
+      take: 40,
+      orderBy: { id: 'asc' },
+      include: { team: true, track: true },
+    });
+  ```
+- **Lines 30–48**: The page currently renders a local, non-interactive `<header>` (`<span className="text-xl font-bold tracking-tight">DOGFOOD 2026</span>`, "Public Gallery" badge, "Sign In" button). This becomes redundant once `Navbar.tsx` is placed globally in `layout.tsx`.
+- **Lines 77–141**: Projects are rendered directly as plain cards with static borders and basic hover states.
+- **No client interactivity**: No search bar or track filter strip currently exists.
 
-### 1.4 Existing App Routes & Missing Phase 3 Endpoints
-Inspection of `src/app` via filesystem and build output:
-- **Existing Routes**:
-  - `src/app/api/auth/login/route.ts` (`POST /api/auth/login`): Validates email, looks up user, returns/creates session token, sets `session` cookie.
-  - `src/app/api/projects/route.ts` (`GET /api/projects`, `POST /api/projects`): Returns public list of projects (max 40); rejects late submissions when `event.submissionsClose < Date.now()`.
-  - `src/app/login/page.tsx`: Interactive sign-in page with quick-select seeded credentials.
-  - `src/app/projects/page.tsx`: Public gallery server component rendering cards with project titles.
-  - `src/app/page.tsx`: Default Next.js starter page.
-- **Missing Routes / Pages Required for Phase 3**:
-  - `src/app/api/judge/scores/route.ts` — **MISSING** (Handles `GET` and `POST /api/judge/scores`).
-  - `src/app/api/export.csv/route.ts` — **MISSING** (Handles `GET /api/export.csv`).
-  - `src/app/judge/page.tsx` — **MISSING** (Judge scoring and assigned project review portal).
-  - `src/app/dashboard/page.tsx` — **MISSING** (Organizer real-time judging progress dashboard).
+### 1.5 `Hack_docs/run.py` & Fixture Invariant
+- **Lines 102–126** in `Hack_docs/run.py`:
+  ```python
+  c = Check("T1", "gallery is public")
+  status, body = request(url("gallery"))
+  c.ok = status == 200
+  ...
+  c = Check("T1", "project from fixtures shown")
+  titles = fixture_titles(fixture)
+  haystack = gallery_body.lower()
+  c.ok = any(t.lower() in haystack for t in titles)
+  ```
+- `request(url("gallery"))` makes an unauthenticated HTTP GET to `/projects`. It does NOT execute JavaScript.
+- `fixture_titles` retrieves the first 3 project titles from `Hack_docs/fixtures.json`:
+  1. `prj_01`: "Glass Signal"
+  2. `prj_02`: "Small Meadow"
+  3. `prj_03`: "Deep Compass"
+- If `/projects` is converted to a client-side fetch (`useEffect` + `fetch('/api/...')`), the raw HTML body will lack these title strings and Check 2 will immediately FAIL.
+- In Next.js App Router, when an async Server Component renders a Client Component (`<ProjectsClient initialProjects={projects} />`), React renders the Client Component's default initial JSX tree during SSR into the initial HTML response. Because initial search is empty and initial track is 'All', all 40 project cards are present in the server-rendered HTML.
 
-### 1.5 Acceptance Checker & Normalization Utility
-- **Acceptance Suite (`Hack_docs/run.py` lines 143–187)**:
-  - `judge sees own scores`: `GET /api/judge/scores` with `judge_a` cookie -> expects HTTP 200.
-  - `judge cannot see peer scores`: `GET /api/judge/scores?judge=user_jdg_a_01` with `judge_b` cookie -> expects HTTP 401 or 403.
-  - `participant blocked`: `GET /api/judge/scores` with `participant` cookie -> expects HTTP 401 or 403.
-  - `csv export works`: `GET /api/export.csv` with `organizer` cookie -> expects HTTP 200 and comma `,` in first line of response.
-- **Normalization Utility (`src/lib/normalization.ts`)**:
-  - `normaliseJudgeScores(scores: number[]): number[]`: Implements Modified Z-Score using MAD (`0.6745 * (s - median) / mad`). Handles zero-variance judges (e.g. `jdg_30` Rafa Okonkwo with `mad === 0`) by returning neutral `0`s instead of crashing with `NaN`.
-  - `normaliseAllJudges(judgeScores: Map<string, Map<string, number>>)`: Ready to transform judge-project score matrices.
+### 1.6 Database Tracks vs Filter Buttons
+- `Hack_docs/fixtures.json` (lines 7–39) seeds 8 tracks:
+  1. `trk_01`: Developer tools (5 projects)
+  2. `trk_02`: Data and analytics (5 projects)
+  3. `trk_03`: Accessibility (5 projects)
+  4. `trk_04`: Security (5 projects)
+  5. `trk_05`: Climate (5 projects)
+  6. `trk_06`: Health (5 projects)
+  7. `trk_07`: Education (5 projects)
+  8. `trk_08`: Open hardware (5 projects)
+- The user prompt specifies track buttons: `All`, `Dev Tools`, `AI Agents`, `Infrastructure`, `Consumer`.
+- A direct mapping layer is necessary in `ProjectsClient` so clicking these category buttons filters seeded projects intelligently rather than returning empty lists.
 
 ---
 
 ## 2. Logic Chain
 
-1. **RBAC Isolation Enforcement in `GET /api/judge/scores`**:
-   - Observation 1.1 shows `getSession(req)` extracts `SessionUser`, including `role` and `id`.
-   - Observation 1.5 shows `run.py` tests peer score access by calling `GET /api/judge/scores?judge=user_jdg_a_01` as `judge_b`.
-   - Therefore, the route handler must extract `const requestedJudgeId = req.nextUrl.searchParams.get('judge')`.
-   - If `session.role !== 'judge' && session.role !== 'organizer' && session.role !== 'admin'`, return 403 Forbidden (blocking participants and unauthenticated users with 401).
-   - If `session.role === 'judge'` and `requestedJudgeId && requestedJudgeId !== session.id`, return 403 Forbidden directly from the handler.
-   - If `session.role === 'judge'` without `judge` param or matching `session.id`, query and return only scores where `judgeId: session.id`. Even if 0 scores exist (as shown in Observation 1.2), returning `[]` with status 200 satisfies `judge sees own scores`.
-
-2. **Score Persistence & Deduplication in `POST /api/judge/scores`**:
-   - Observation 1.3 shows `Score` model lacks a unique constraint on `(judgeId, projectId, criterionId)`.
-   - If a judge re-evaluates a project, a naive `prisma.score.create()` would create duplicate records and corrupt normalization averages.
-   - Therefore, the handler must either:
-     a) Use a transaction that finds existing score records for `(judgeId, projectId, criterionId)` and updates them, or deletes previous scores for that `(judgeId, projectId)` before inserting new ones.
-     b) Enforce track assignment: verify `JudgeAssignment` exists for `userId == session.id` and `trackId == project.trackId`.
-   - In addition, an entry must be created in `AuditLog` (`action: "score_submitted"`, `userId: session.id`, `payload: JSON.stringify(...)`).
-
-3. **CSV Export & MAD Integration in `GET /api/export.csv`**:
-   - Observation 1.5 shows `export.csv` is checked with `organizer` credentials and requires valid CSV with a comma in line 1.
-   - Observation 1.1 and role checks dictate that any non-organizer (`judge`, `participant`, `visitor`) must receive HTTP 403 Forbidden.
-   - For valid organizer sessions: query all projects, scores, criteria, and tracks.
-   - Construct raw judge score matrices, invoke `normaliseAllJudges` or `normaliseJudgeScores`, compute average raw and normalized scores per project, sort by normalized score descending, and output CSV formatted text with header:
-     `project_id,project_title,track,raw_score,normalized_score,rank`.
-
-4. **Server Component Authentication Gap**:
-   - Observation 1.1 shows `getSession(req: NextRequest)` requires a `NextRequest` instance.
-   - In Next.js App Router, Server Components in `page.tsx` (like `/judge` and `/dashboard`) do not receive `NextRequest`.
-   - Therefore, a companion helper `getServerSession()` using `cookies()` from `next/headers` is required to allow Server Components to inspect the logged-in user and redirect to `/login` if unauthenticated.
+1. **Theme Consistency**: Because the entire portal is moving to Midnight Obsidian Glass, setting `--background: #07090e` and `--card: #0a0d14` directly in `:root` (and keeping `.dark` synchronized) ensures all base shadcn components (`Card`, `Input`, `Dialog`, `DropdownMenu`) automatically adopt obsidian surfaces without requiring ad-hoc class overrides. Adding `className="dark"` to `<html>` guarantees dark-mode utility classes (`dark:...`) resolve properly.
+2. **Ambient Glow Separation**: Placing the ambient bloom (`radial-gradient(ellipse 80% 50% at 50% -10%, rgba(56,189,248,0.12), transparent)`) in `src/app/layout.tsx` as an `aria-hidden="true"` fixed layer behind content (`pointer-events-none -z-10`) provides consistent viewport lighting across all pages without z-index conflicts or interfering with pointer events.
+3. **SSR-Safe Navigation**: Next.js App Router allows Server Component layouts to import Client Components. By extracting `Navbar` to `src/components/Navbar.tsx` with `'use client'`, it can use the `usePathname()` hook from `next/navigation` to detect the active route (e.g., `/projects`, `/judge`, `/dashboard`) and apply luminous active states without forcing `layout.tsx` to become a Client Component.
+4. **Framer Motion Integration**: To satisfy R1 and `frontend-rules.md` (Pillar 14 - Fluid Motion), wrapping `{children}` in a Client Component `PageTransition` (`<motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, ease: "easeOut" }}>`) provides a smooth page entrance. Including `useReducedMotion()` from `framer-motion` ensures accessibility compliance for users with vestibular sensitivities.
+5. **Preserving T1 Acceptance Check**: `src/app/projects/page.tsx` must execute `await prisma.project.findMany(...)` server-side and pass the data to `ProjectsClient`. Because initial state defaults to `searchQuery = ""` and `selectedTrack = "All"`, Next.js SSR renders the complete list of 40 projects directly into the initial HTML payload. This guarantees that `run.py` finds "Glass Signal", "Small Meadow", and "Deep Compass" on the first request.
+6. **Robust Client Island Filtering**: By isolating search and track filtering inside `src/app/projects/projects-client.tsx`, filtering operates entirely in client memory with zero roundtrips to the database or network, providing instant 60fps responsiveness.
 
 ---
 
-## 3. Caveats
+## 3. Implementation Specifications & Blueprints
 
-1. **No SQLite Composite Unique Index**:
-   Because `schema.prisma` was frozen and migrated in Phase 1, altering the schema now to add `@unique([judgeId, projectId, criterionId])` would require another Prisma migration (`prisma migrate dev`). To avoid risking migration drift or Docker seed issues, deduplication and upsert handling should be implemented cleanly in application code within `POST /api/judge/scores`.
-2. **Submissions Closed State**:
-   The event `evt_01` seeded in fixtures has `submissionsClose: "2026-03-01T18:00:00Z"`, which is in the past. This correctly enforces the T1 closed check. However, for judging (T2), projects are already submitted and seeded (41 projects), so scoring can proceed without modifying the submission window.
-3. **Judge Assignment Enforcement**:
-   `fixtures.json` assigned tracks to fixture judges (`jdg_01`..`jdg_30`). `seed.ts` assigned `judge_a` to `trk_01` and `judge_b` to `trk_02`. In `POST /api/judge/scores`, checking whether a judge is assigned to the project's track is required by spec R2, but organizer override or track assignment flexibility should be handled gracefully.
+### 3.1 `src/app/globals.css` Specification
+Update `:root` and `.dark` blocks and declare glass tokens:
+
+```css
+@layer base {
+  :root {
+    /* Obsidian Canvas & Surfaces */
+    --background: #07090e;
+    --foreground: #f8fafc;
+    --card: #0a0d14;
+    --card-foreground: #f8fafc;
+    --popover: #0a0d14;
+    --popover-foreground: #f8fafc;
+    
+    /* Brand Accents (Cyan / Electric Sky) */
+    --primary: #38bdf8;
+    --primary-foreground: #07090e;
+    --secondary: #131722;
+    --secondary-foreground: #f8fafc;
+    --muted: #131722;
+    --muted-foreground: #94a3b8;
+    --accent: #1e293b;
+    --accent-foreground: #f8fafc;
+    --destructive: #ef4444;
+    --destructive-foreground: #ffffff;
+    
+    /* Borders & Inputs */
+    --border: rgba(255, 255, 255, 0.08);
+    --input: rgba(255, 255, 255, 0.12);
+    --ring: rgba(56, 189, 248, 0.4);
+    --radius: 0.75rem;
+
+    /* Glass Tokens */
+    --glass-bg: rgba(255, 255, 255, 0.04);
+    --glass-border: rgba(255, 255, 255, 0.08);
+    --glass-border-accent: rgba(56, 189, 248, 0.3);
+  }
+
+  .dark {
+    --background: #07090e;
+    --foreground: #f8fafc;
+    --card: #0a0d14;
+    --card-foreground: #f8fafc;
+    --popover: #0a0d14;
+    --popover-foreground: #f8fafc;
+    --primary: #38bdf8;
+    --primary-foreground: #07090e;
+    --secondary: #131722;
+    --secondary-foreground: #f8fafc;
+    --muted: #131722;
+    --muted-foreground: #94a3b8;
+    --accent: #1e293b;
+    --accent-foreground: #f8fafc;
+    --destructive: #ef4444;
+    --destructive-foreground: #ffffff;
+    --border: rgba(255, 255, 255, 0.08);
+    --input: rgba(255, 255, 255, 0.12);
+    --ring: rgba(56, 189, 248, 0.4);
+    --glass-bg: rgba(255, 255, 255, 0.04);
+    --glass-border: rgba(255, 255, 255, 0.08);
+    --glass-border-accent: rgba(56, 189, 248, 0.3);
+  }
+}
+```
+
+Optional utility classes in `globals.css`:
+```css
+@layer utilities {
+  .glass-card {
+    background-color: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+}
+```
 
 ---
 
-## 4. Conclusion
+### 3.2 `src/app/layout.tsx` Blueprint
+```tsx
+import type { Metadata } from "next";
+import localFont from "next/font/local";
+import "./globals.css";
+import { Navbar } from "@/components/Navbar";
+import { PageTransition } from "@/components/PageTransition";
 
-The codebase foundation is in an excellent, clean state. Typechecking and Next.js production builds compile with zero errors. All database models, seeded test accounts, deterministic tokens, and MAD normalization logic are in place and verified against the live SQLite database.
+const geistSans = localFont({
+  src: "./fonts/GeistVF.woff",
+  variable: "--font-geist-sans",
+  weight: "100 900",
+});
+const geistMono = localFont({
+  src: "./fonts/GeistMonoVF.woff",
+  variable: "--font-geist-mono",
+  weight: "100 900",
+});
 
-To achieve green status on all Phase 3 (T2 Judging) acceptance checks, the implementation team must implement:
-1. `src/lib/auth.ts`: Add `getServerSession()` helper utilizing `cookies()` from `next/headers` for App Router Server Components.
-2. `src/app/api/judge/scores/route.ts`:
-   - `GET`: Implement strict RBAC (401 unauthenticated, 403 participant, 403 if `judge !== session.id`, 200 with own scores for judge).
-   - `POST`: Validate payload with Zod, verify judge track assignment, upsert score rows per criterion, create immutable `AuditLog` entry.
-3. `src/app/api/export.csv/route.ts`:
-   - `GET`: Restrict to `organizer`/`admin` (403 for others). Aggregate scores, apply MAD normalization via `src/lib/normalization.ts`, calculate ranks, and return CSV with header `project_id,project_title,track,raw_score,normalized_score,rank`.
-4. `src/app/judge/page.tsx`:
-   - Server Component UI for judges to browse assigned projects, enter criterion scores, and submit reviews.
-5. `src/app/dashboard/page.tsx`:
-   - Server Component UI for organizers displaying aggregate progress metrics, judge completion rates, and quick link to `/api/export.csv`.
+export const metadata: Metadata = {
+  title: "DOGFOOD 2026",
+  description: "Hackathon submission and judging platform",
+};
+
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
+  return (
+    <html lang="en" className="dark">
+      <body
+        className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen bg-background text-foreground flex flex-col relative`}
+      >
+        {/* Ambient Top Cyan/Indigo Glow */}
+        <div
+          aria-hidden="true"
+          className="fixed inset-0 pointer-events-none -z-10 overflow-hidden"
+          style={{
+            background:
+              "radial-gradient(ellipse 80% 50% at 50% -10%, rgba(56, 189, 248, 0.12), transparent)",
+          }}
+        />
+
+        {/* Global Floating Glass Navbar */}
+        <Navbar />
+
+        {/* Page Entrance Animated Container */}
+        <PageTransition>
+          {children}
+        </PageTransition>
+      </body>
+    </html>
+  );
+}
+```
 
 ---
 
-## 5. Verification Method
+### 3.3 `src/components/Navbar.tsx` Blueprint
+```tsx
+'use client';
 
-To independently verify these findings:
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 
-1. **Verify TypeScript compilation and Next.js build**:
+const NAV_ITEMS = [
+  { href: '/projects', label: 'Projects' },
+  { href: '/judge', label: 'Judge' },
+  { href: '/dashboard', label: 'Dashboard' },
+];
+
+function GithubIcon(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="18"
+      height="18"
+      stroke="currentColor"
+      strokeWidth="2"
+      fill="none"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      {...props}
+    >
+      <path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4" />
+      <path d="M9 18c-4.51 2-5-2-7-2" />
+    </svg>
+  );
+}
+
+export function Navbar() {
+  const pathname = usePathname();
+
+  return (
+    <header className="sticky top-0 z-50 backdrop-blur-md bg-white/[0.04] border-b border-white/[0.06] transition-colors">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+        {/* Left: Brand & Monospace Badge */}
+        <div className="flex items-center gap-3">
+          <Link href="/projects" className="flex items-center gap-2 group">
+            <span className="text-lg font-bold tracking-tight text-white group-hover:text-cyan-400 transition-colors">
+              DOGFOOD 2026
+            </span>
+          </Link>
+          <Badge
+            variant="outline"
+            className="font-mono text-[10px] tracking-wider uppercase px-2 py-0.5 rounded border-white/10 bg-white/5 text-cyan-300"
+          >
+            PORTAL
+          </Badge>
+        </div>
+
+        {/* Center: Navigation Links */}
+        <nav className="flex items-center gap-1 sm:gap-2">
+          {NAV_ITEMS.map((item) => {
+            const isActive =
+              pathname === item.href ||
+              (item.href !== '/' && pathname?.startsWith(item.href));
+
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all ${
+                  isActive
+                    ? 'text-cyan-400 bg-white/[0.08] border border-cyan-500/30 shadow-[0_0_12px_rgba(56,189,248,0.2)]'
+                    : 'text-slate-400 hover:text-slate-100 hover:bg-white/[0.04] border border-transparent'
+                }`}
+              >
+                {item.label}
+              </Link>
+            );
+          })}
+        </nav>
+
+        {/* Right: GitHub Icon Link & Sign In */}
+        <div className="flex items-center gap-3">
+          <a
+            href="https://github.com/Vineetw07/dogfood-portal"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="GitHub Repository"
+            className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-white/[0.05] border border-transparent hover:border-white/10 transition-colors"
+          >
+            <GithubIcon />
+          </a>
+          <Link href="/login">
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-xs h-8 px-3 border-white/10 bg-white/5 text-slate-200 hover:bg-white/10 hover:text-white hover:border-cyan-500/30 transition-all"
+            >
+              Sign In
+            </Button>
+          </Link>
+        </div>
+      </div>
+    </header>
+  );
+}
+```
+
+---
+
+### 3.4 `src/components/PageTransition.tsx` Blueprint
+```tsx
+'use client';
+
+import { motion, useReducedMotion } from 'framer-motion';
+
+export function PageTransition({ children }: { children: React.ReactNode }) {
+  const shouldReduceMotion = useReducedMotion();
+
+  return (
+    <motion.div
+      initial={shouldReduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.35, ease: 'easeOut' }}
+      className="flex-1 flex flex-col w-full"
+    >
+      {children}
+    </motion.div>
+  );
+}
+```
+
+---
+
+### 3.5 `src/app/projects/page.tsx` (Server Component) Blueprint
+```tsx
+import { Metadata } from 'next';
+import { prisma } from '@/lib/prisma';
+import { ProjectsClient } from './projects-client';
+
+export const dynamic = 'force-dynamic';
+
+export const metadata: Metadata = {
+  title: 'Project Gallery | DOGFOOD 2026',
+  description: 'Explore submissions and projects participating in DOGFOOD 2026.',
+};
+
+export default async function ProjectsPage() {
+  const projects = await prisma.project.findMany({
+    take: 40,
+    orderBy: { id: 'asc' },
+    include: {
+      team: true,
+      track: true,
+    },
+  });
+
+  return (
+    <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 w-full">
+      {/* Hero Banner with glowing pill badge */}
+      <div className="text-center md:text-left mb-10">
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-cyan-500/30 bg-cyan-500/10 text-cyan-300 text-xs font-medium tracking-wide mb-4 shadow-[0_0_15px_rgba(56,189,248,0.2)]">
+          <span>✦ DOGFOOD 2026 PORTAL</span>
+        </div>
+        <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight text-white mb-3">
+          Project Gallery
+        </h1>
+        <p className="text-slate-400 text-base sm:text-lg max-w-2xl leading-relaxed">
+          Discover all projects submitted to DOGFOOD 2026. Explore innovative work across every track.
+        </p>
+      </div>
+
+      {/* Client island for search, track filtering and glass cards */}
+      <ProjectsClient initialProjects={projects} />
+    </main>
+  );
+}
+```
+
+---
+
+### 3.6 `src/app/projects/projects-client.tsx` (Client Island) Blueprint
+```tsx
+'use client';
+
+import { useState, useMemo } from 'react';
+import { Badge } from '@/components/ui/badge';
+import { Search, ExternalLink, Users, Calendar, X } from 'lucide-react';
+import type { Prisma } from '@prisma/client';
+
+type ProjectWithRelations = Prisma.ProjectGetPayload<{
+  include: { team: true; track: true };
+}>;
+
+interface ProjectsClientProps {
+  initialProjects: ProjectWithRelations[];
+}
+
+const FILTER_TRACKS = [
+  'All',
+  'Dev Tools',
+  'AI Agents',
+  'Infrastructure',
+  'Consumer',
+] as const;
+
+type FilterTrack = typeof FILTER_TRACKS[number];
+
+/**
+ * Intelligent category matching between prompt track buttons and DB fixture tracks
+ */
+function matchesTrack(trackName: string | undefined, filter: FilterTrack): boolean {
+  if (filter === 'All') return true;
+  if (!trackName) return false;
+  const t = trackName.toLowerCase();
+  switch (filter) {
+    case 'Dev Tools':
+      return t.includes('dev') || t.includes('tool');
+    case 'AI Agents':
+      return t.includes('data') || t.includes('ai') || t.includes('agent') || t.includes('analytic');
+    case 'Infrastructure':
+      return t.includes('security') || t.includes('hardware') || t.includes('infra');
+    case 'Consumer':
+      return t.includes('health') || t.includes('education') || t.includes('accessibility') || t.includes('climate');
+    default:
+      return t.includes(filter.toLowerCase());
+  }
+}
+
+function getTrackBadgeStyle(trackName?: string) {
+  const t = (trackName || '').toLowerCase();
+  if (t.includes('dev') || t.includes('tool')) {
+    return 'border-cyan-500/30 bg-cyan-500/10 text-cyan-300';
+  }
+  if (t.includes('data') || t.includes('ai') || t.includes('analytic')) {
+    return 'border-purple-500/30 bg-purple-500/10 text-purple-300';
+  }
+  if (t.includes('security') || t.includes('hardware') || t.includes('infra')) {
+    return 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300';
+  }
+  return 'border-amber-500/30 bg-amber-500/10 text-amber-300';
+}
+
+export function ProjectsClient({ initialProjects }: ProjectsClientProps) {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedTrack, setSelectedTrack] = useState<FilterTrack>('All');
+
+  const filteredProjects = useMemo(() => {
+    return initialProjects.filter((p) => {
+      const q = searchQuery.trim().toLowerCase();
+      const matchesSearch =
+        q === '' ||
+        p.title.toLowerCase().includes(q) ||
+        p.summary.toLowerCase().includes(q) ||
+        (p.track?.name && p.track.name.toLowerCase().includes(q));
+
+      const matchesTrk = matchesTrack(p.track?.name, selectedTrack);
+      return matchesSearch && matchesTrk;
+    });
+  }, [initialProjects, searchQuery, selectedTrack]);
+
+  return (
+    <div className="space-y-8">
+      {/* Controls Container */}
+      <div className="flex flex-col gap-4">
+        {/* Search Input */}
+        <div className="relative max-w-xl w-full">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-slate-400" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search projects by title, summary, or track..."
+            className="w-full pl-10 pr-10 py-2.5 rounded-xl bg-white/[0.03] border border-white/[0.08] text-sm text-white placeholder:text-slate-400 focus:outline-none focus:border-cyan-500/40 focus:ring-2 focus:ring-cyan-500/20 backdrop-blur-md transition-all"
+            aria-label="Search projects"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition-colors"
+              aria-label="Clear search"
+            >
+              <X className="size-4" />
+            </button>
+          )}
+        </div>
+
+        {/* Track Filter Strip */}
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 max-w-full">
+            {FILTER_TRACKS.map((track) => {
+              const isSelected = selectedTrack === track;
+              return (
+                <button
+                  key={track}
+                  type="button"
+                  onClick={() => setSelectedTrack(track)}
+                  aria-pressed={isSelected}
+                  className={`px-3.5 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all ${
+                    isSelected
+                      ? 'bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 shadow-[0_0_12px_rgba(56,189,248,0.2)]'
+                      : 'bg-white/[0.03] border border-white/[0.08] text-slate-400 hover:text-slate-200 hover:bg-white/[0.06]'
+                  }`}
+                >
+                  {track}
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="text-xs text-slate-400 bg-white/[0.03] border border-white/[0.06] px-3 py-1.5 rounded-lg">
+            Showing <span className="font-semibold text-white">{filteredProjects.length}</span> of {initialProjects.length} projects
+          </div>
+        </div>
+      </div>
+
+      {/* Grid of Glass Project Cards */}
+      {filteredProjects.length === 0 ? (
+        <div className="text-center py-20 border border-white/[0.08] rounded-2xl bg-[var(--glass-bg)] backdrop-blur-md">
+          <h3 className="text-lg font-semibold text-white">No matching projects found</h3>
+          <p className="text-slate-400 mt-1 text-sm">
+            Try adjusting your search query or track filter.
+          </p>
+          <button
+            onClick={() => {
+              setSearchQuery('');
+              setSelectedTrack('All');
+            }}
+            className="mt-4 px-4 py-2 rounded-lg text-xs font-medium bg-white/10 text-white hover:bg-white/15 transition-colors"
+          >
+            Reset Filters
+          </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredProjects.map((project) => (
+            <div
+              key={project.id}
+              className="bg-[var(--glass-bg)] border border-[var(--glass-border)] backdrop-blur-md rounded-2xl p-6 flex flex-col justify-between transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_8px_32px_rgba(56,189,248,0.12)] hover:border-cyan-500/30 group"
+            >
+              <div>
+                {/* Header: Track Badge & ID */}
+                <div className="flex items-center justify-between gap-2 mb-3">
+                  <span
+                    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getTrackBadgeStyle(
+                      project.track?.name
+                    )}`}
+                  >
+                    {project.track?.name || 'General Track'}
+                  </span>
+                  <span className="text-xs text-slate-500 font-mono">
+                    {project.id}
+                  </span>
+                </div>
+
+                {/* Project Title */}
+                <h3 className="text-xl font-bold leading-snug text-white group-hover:text-cyan-300 transition-colors mb-2">
+                  {project.title}
+                </h3>
+
+                {/* Team */}
+                <div className="flex items-center gap-1.5 text-xs text-slate-400 mb-4">
+                  <Users className="size-3.5 text-slate-500" />
+                  <span>{project.team?.name || 'Independent Team'}</span>
+                </div>
+
+                {/* Summary */}
+                <p className="text-sm text-slate-400 leading-relaxed line-clamp-3 mb-4">
+                  {project.summary}
+                </p>
+              </div>
+
+              {/* Footer: Repo Link, Date, Status */}
+              <div className="pt-4 border-t border-white/[0.06] space-y-3">
+                {project.repoUrl && (
+                  <div>
+                    <a
+                      href={project.repoUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-white/10 bg-white/5 text-slate-200 hover:text-white hover:bg-white/10 hover:border-cyan-500/40 transition-all"
+                    >
+                      <ExternalLink className="size-3.5 text-cyan-400" />
+                      <span>Source Repository</span>
+                    </a>
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between text-xs text-slate-400">
+                  <div className="flex items-center gap-1">
+                    <Calendar className="size-3.5 text-slate-500" />
+                    <span>
+                      {new Date(project.submittedAt).toLocaleDateString(undefined, {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric',
+                      })}
+                    </span>
+                  </div>
+                  <Badge
+                    variant={project.isDraft ? 'outline' : 'secondary'}
+                    className={`text-[10px] uppercase font-semibold px-2 py-0.5 ${
+                      project.isDraft
+                        ? 'border-slate-600 text-slate-400'
+                        : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
+                    }`}
+                  >
+                    {project.isDraft ? 'Draft' : 'Submitted'}
+                  </Badge>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+```
+
+---
+
+## 4. Caveats
+
+1. **Port 8080 Process**: The development server was confirmed not actively running during this investigation. Before running `python Hack_docs/run.py .dogfood.toml`, the implementer or test runner must start `npm run start` (or `npm run dev`) on port 8080.
+2. **Track Categorization Alignment**: Fixture tracks are categorized into 8 domains (`Developer tools`, `Data and analytics`, `Accessibility`, `Security`, `Climate`, `Health`, `Education`, `Open hardware`). The filter logic in `ProjectsClient` maps the 4 prompt-requested categories (`Dev Tools`, `AI Agents`, `Infrastructure`, `Consumer`) to these 8 domains. If future events introduce arbitrary track names, `matchesTrack` will fallback to case-insensitive substring matching.
+3. **No External CDNs**: Ensure no worker attempts to import fonts from Google Fonts or external CDN stylesheets. All fonts must remain bound to `next/font/local` in `layout.tsx`.
+4. **Header De-duplication**: The old `<header>` inside `src/app/projects/page.tsx` must be removed so that the page does not render two navigation headers.
+
+---
+
+## 5. Conclusion
+
+1. **R1 Global Design System Architecture**:
+   - `src/app/globals.css` can be updated cleanly to redefine `--background: #07090e`, `--card: #0a0d14`, and introduce `--glass-bg`, `--glass-border`, `--glass-border-accent`.
+   - `src/app/layout.tsx` must add `className="dark"` to `<html>`, introduce the ambient top glow `<div aria-hidden>`, mount the client `<Navbar />`, and wrap `{children}` in client `<PageTransition />`.
+   - `Navbar.tsx` MUST use an inline SVG for the GitHub icon because `lucide-react` does not export `Github`.
+2. **R2 Public Project Gallery Architecture**:
+   - `src/app/projects/page.tsx` strictly retains its async Server Component identity and Prisma query (`take: 40, orderBy: { id: 'asc' }`).
+   - `ProjectsClient` encapsulates stateful search, track category filtering, glass cards with hover lift, and track badges.
+   - Initial SSR renders all 40 projects directly in the HTML, fully safeguarding acceptance checks in `Hack_docs/run.py`.
+
+---
+
+## 6. Verification Method
+
+To independently verify these findings and implementations:
+
+1. **TypeScript Compilation**:
    ```powershell
    npm run typecheck
+   ```
+   Must exit with code 0 (no missing exports like `Github` or type errors on Prisma models).
+
+2. **Linter Check**:
+   ```powershell
+   npm run lint
+   ```
+   Must pass with 0 warnings/errors.
+
+3. **Next.js Production Build**:
+   ```powershell
    npm run build
    ```
-   Both must exit with status code 0.
+   Confirm `/projects` builds as a Server Component (marked with `λ` or `○` server/static symbol), and all client components compile without SSR boundary errors.
 
-2. **Inspect existing routes**:
+4. **SSR Fixture Title Verification**:
+   Start production server:
    ```powershell
-   Get-ChildItem -Path "d:\TP\Hackathon\DogFood\src\app" -Recurse -File | Select-Object FullName
+   npm run start
    ```
-   Confirms missing `/api/judge/scores`, `/api/export.csv`, `/judge`, and `/dashboard`.
+   Probe `/projects` raw HTML directly via PowerShell (simulating `run.py` without JS):
+   ```powershell
+   $html = (Invoke-WebRequest -Uri "http://localhost:8080/projects" -UseBasicParsing).Content
+   $html -match "Glass Signal"
+   $html -match "Small Meadow"
+   $html -match "Deep Compass"
+   ```
+   All three assertions must return `True`.
 
-3. **Verify SQLite Database counts and test accounts**:
-   Run via tsx or prisma studio to confirm 34 users, 41 projects, 252 scores, 4 rubric criteria, and 0 judge_a scores.
-
-4. **Verify Acceptance Runner Expectations**:
-   Inspect lines 143–187 of `Hack_docs/run.py` to confirm the 4 exact T2 assertions (`judge sees own scores`, `judge cannot see peer scores`, `participant blocked`, `csv export works`).
+5. **Automated Acceptance Suite**:
+   ```powershell
+   python Hack_docs/run.py .dogfood.toml
+   ```
+   Must report `T1  gallery is public .... PASS` and `T1  project from fixtures shown .... PASS` as part of the 7/7 PASS suite.

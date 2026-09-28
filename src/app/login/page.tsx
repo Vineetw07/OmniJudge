@@ -118,7 +118,7 @@ export default function LoginPage() {
           </Link>
           <span className="inline-flex items-center gap-1 text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
             <Sparkles className="size-2.5" />
-            <span>Dogfood Portal</span>
+            <span>OmniJudge Portal</span>
           </span>
         </div>
 
@@ -127,7 +127,7 @@ export default function LoginPage() {
           <div className="inline-flex items-center justify-center size-12 rounded-xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 shadow-[0_0_15px_rgba(6,182,212,0.15)] mb-1">
             <KeyRound className="size-6" />
           </div>
-          <h1 className="text-2xl font-bold tracking-tight text-white">DOGFOOD 2026</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-white">OmniJudge</h1>
           <p className="text-xs text-slate-400">Sign in to access your hackathon portal</p>
         </div>
 

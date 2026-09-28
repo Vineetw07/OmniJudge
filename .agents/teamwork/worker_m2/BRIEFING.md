@@ -1,55 +1,54 @@
-# BRIEFING — 2026-09-27T08:22:35Z
+# BRIEFING — 2026-09-28T16:31:30+05:30
 
 ## Mission
-Implement Milestone 2: Prisma Schema (11 models) and SQLite Initial Migration for DOGFOOD 2026.
+Polish Public Project Gallery with Server Component page and interactive ProjectsClient island.
 
 ## 🔒 My Identity
 - Archetype: worker
-- Roles: implementer, qa, specialist
-- Working directory: d:\TP\Hackathon\DogFood\.agents\teamwork\worker_m2
-- Original parent: 888777a3-ceb6-4c51-9149-57f94c76f23a
-- Milestone: Milestone 2 (Prisma Schema & SQLite Migration)
+- Roles: implementer, qa
+- Working directory: d:\TP\Hackathon\DogFood\.agents\teamwork\worker_m2\
+- Original parent: aaa1f7f5-6bb6-49cc-b8cd-f714b5331069
+- Milestone: Milestone 2 R2 (Public Project Gallery Polish)
 
 ## 🔒 Key Constraints
-- Do not cheat, create facades, or hardcode test outputs. Genuine schema and migration only.
-- Sole write ownership of `prisma/schema.prisma`, `prisma/migrations/*`, `prisma/dogfood.db`.
-- SQLite provider with `url = env("DATABASE_URL")`.
-- 11 models exactly per `ORIGINAL_REQUEST.md § R2`: User, Session, Event, Track, Team, TeamMember, Project, RubricCriterion, JudgeAssignment, Score, AuditLog.
-- Windows PowerShell 5.1 syntax (use `;` not `&&` or `||`).
-- No unsolicited refactoring.
+- Own exclusively: `src/app/projects/page.tsx`, `src/app/projects/projects-client.tsx`
+- Invariant: `src/app/projects/page.tsx` MUST remain an async Server Component querying Prisma directly:
+  `const projects = await prisma.project.findMany({ take: 40, orderBy: { id: 'asc' }, include: { team: true, track: true } });`
+- Initial HTML body must render fixture project titles ("Glass Signal", "Small Meadow", "Deep Compass") during SSR.
+- Zero lint/typecheck errors.
+- PowerShell 5.1 syntax: sequential `;`, no `&&`.
 
 ## Current Parent
-- Conversation ID: 888777a3-ceb6-4c51-9149-57f94c76f23a
-- Updated: not yet
+- Conversation ID: aaa1f7f5-6bb6-49cc-b8cd-f714b5331069
+- Updated: 2026-09-28T16:31:30+05:30
 
 ## Task Summary
-- **What to build**: Full Prisma schema with all 11 models and relations, generate client, execute initial migration.
-- **Success criteria**:
-  1. `prisma/schema.prisma` contains 11 models with all fields and relations per R2.
-  2. `npx prisma validate` exits 0.
-  3. `npx prisma generate` exits 0.
-  4. `npx prisma migrate dev --name init --skip-seed` creates migration in `prisma/migrations/`.
-  5. `npm run typecheck` passes with 0 errors.
-- **Interface contracts**: `d:\TP\Hackathon\DogFood\.agents\teamwork\ORIGINAL_REQUEST.md § R2`
-- **Code layout**: `d:\TP\Hackathon\DogFood\prisma\`
+- **What to build**: Server Component `page.tsx` querying Prisma + Client Component `projects-client.tsx` with search, category filtering, glass cards, empty state.
+- **Success criteria**: SSR passes fixture checks, glass UI styled according to frontend rules, search + track filters functional, typecheck & lint pass.
+- **Interface contracts**: Prisma Project include team and track.
+- **Code layout**: Next.js App Router `src/app/projects/`.
 
 ## Key Decisions Made
-- Use exact model definitions from R2 in `ORIGINAL_REQUEST.md`.
+- Kept Prisma query exactly as specified in `page.tsx` and passed `projects` to `ProjectsClient` as `initialProjects`.
+- Implemented `matchesTrack` helper covering all 8 fixture tracks and 5 filter buttons.
+- Formatted dates with explicit UTC timezone and 'en-US' locale to ensure 100% deterministic SSR/CSR hydration matching.
+- Removed old redundant local header from `page.tsx` since global glass `Navbar` is mounted in root layout.
 
 ## Artifact Index
-- `prisma/schema.prisma` — Prisma schema definition
-- `prisma/migrations/` — SQLite migration files
-- `handoff.md` — Final handoff report
+- `src/app/projects/page.tsx` — Async Server Component with Hero banner and Prisma query
+- `src/app/projects/projects-client.tsx` — Client Component island with search, category filter strip, glass cards, empty state
 
 ## Change Tracker
-- **Files modified**: None yet
-- **Build status**: Untested
+- **Files modified**:
+  - `src/app/projects/page.tsx`: Cleaned redundant header, rendered hero banner, passed projects to `ProjectsClient`
+  - `src/app/projects/projects-client.tsx`: Created interactive client island with search, track filter buttons, and glass cards
+- **Build status**: Pass (`npm run typecheck`, `npm run lint`, `npm run build` all pass with exit code 0)
 - **Pending issues**: None
 
 ## Quality Status
-- **Build/test result**: Pending
-- **Lint status**: Pending
-- **Tests added/modified**: None
+- **Build/test result**: Pass (Acceptance checker 7/7 PASS, Adversarial Phase 2 & Phase 3 suites pass)
+- **Lint status**: 0 errors, 0 warnings
+- **Tests added/modified**: Verified against acceptance checker and adversarial suites
 
 ## Loaded Skills
-- None
+- none

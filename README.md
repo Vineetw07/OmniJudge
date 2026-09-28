@@ -1,4 +1,4 @@
-# DOGFOOD 2026 Hackathon Portal
+# OmniJudge Hackathon Portal
 
 > **A self-hostable, zero-dependency hackathon portal built for offline resilience, strict cryptographic role isolation, and bias-resistant judging.**
 > Verified 7/7 on official DOGFOOD acceptance checker (`T1` + `T2`).
@@ -97,7 +97,7 @@ All endpoints adhere strictly to HTTP standards, status codes, and security poli
 
 ## 🛡️ Security & RBAC Boundary Architecture
 
-A critical failure mode in hackathon portals is relying on front-end UI conditional rendering to hide unauthorized data. DOGFOOD 2026 enforces strict, zero-trust security boundaries:
+A critical failure mode in hackathon portals is relying on front-end UI conditional rendering to hide unauthorized data. OmniJudge enforces strict, zero-trust security boundaries:
 
 ```
 [ Incoming HTTP Request ]
@@ -122,7 +122,7 @@ A critical failure mode in hackathon portals is relying on front-end UI conditio
 
 ## 🧮 Judging Normalization (Modified Z-Score via MAD)
 
-To counteract judge bias (hawks vs. doves, grade inflation, compression), DOGFOOD 2026 implements **Modified Z-Score Normalization** based on the **Median Absolute Deviation (MAD)**:
+To counteract judge bias (hawks vs. doves, grade inflation, compression), OmniJudge implements **Modified Z-Score Normalization** based on the **Median Absolute Deviation (MAD)**:
 
 $$\text{MAD} = \text{median}\left(|x_i - \text{median}(X)|\right)$$
 

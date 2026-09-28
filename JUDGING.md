@@ -1,6 +1,6 @@
-# DOGFOOD 2026 Judging & Score Normalization Specification
+# OmniJudge Judging & Score Normalization Specification
 
-> **Comprehensive mathematical formulation, derivation, edge-case mitigation, and export specifications for the DOGFOOD 2026 evaluation engine.**
+> **Comprehensive mathematical formulation, derivation, edge-case mitigation, and export specifications for the OmniJudge evaluation engine.**
 
 ---
 
@@ -12,7 +12,7 @@ In multi-track hackathons evaluated by distributed panels of volunteer judges, r
 2. **Variance Compression (Discrimination Failure):** Some judges score every project within a narrow band (e.g. 4.0 to 4.5), while others utilize the full 1.0 to 5.0 scale.
 3. **Incomplete Block Designs:** Judges cannot evaluate all projects; they only score a subset within their assigned track. Cross-judge variance cannot be balanced out naturally by large-sample law of averages.
 
-To solve this, DOGFOOD 2026 implements a dual-defense system: **Track-Level Assignment Architecture** combined with **Modified Z-Score Normalization** via **Median Absolute Deviation (MAD)**.
+To solve this, OmniJudge implements a dual-defense system: **Track-Level Assignment Architecture** combined with **Modified Z-Score Normalization** via **Median Absolute Deviation (MAD)**.
 
 ---
 
@@ -24,7 +24,7 @@ $$\text{Evaluations} = 40 \times 4 = 160 \text{ criterion ratings per judge}$$
 
 This causes acute reviewer fatigue, rushed evaluations, and high variance decay over time. 
 
-DOGFOOD 2026 adopts an **Incomplete Block Design (IBD)**:
+OmniJudge adopts an **Incomplete Block Design (IBD)**:
 1. **Domain Track Partitioning:** Projects are partitioned into distinct Tracks (`trk_dev_tools`, `trk_ai_agents`, `trk_infra`, `trk_consumer`).
 2. **Specialized Panel Assignment:** Judges are assigned to 1–2 tracks based on domain expertise via explicit `JudgeAssignment` records.
 3. **Load Capping:** Each judge evaluates a manageable cohort of 8–12 projects, ensuring deep code review, repo inspection, and high-fidelity rubric scoring.
@@ -41,7 +41,7 @@ Assignment is not merely a UI suggestion; it is a **cryptographic security bound
 
 ### 3.1 Why Competing Normalization Methods Fail (The Defense)
 
-| Normalization Method | Formula | Fatal Flaw in Hackathons | DOGFOOD Verdict |
+| Normalization Method | Formula | Fatal Flaw in Hackathons | OmniJudge Verdict |
 | :--- | :--- | :--- | :--- |
 | **Raw Arithmetic Mean** | $\bar{x} = \frac{1}{K}\sum x_k$ | Vulnerable to "hawks vs. doves" calibration skew. Submissions assigned strict judges are unfairly penalized. | ❌ Rejected |
 | **Min-Max Scaling** | $\frac{x_i - \min}{\max - \min}$ | Extreme outlier scores collapse the scale for all intermediate projects; breaks down if $\min = \max$. | ❌ Rejected |
@@ -50,7 +50,7 @@ Assignment is not merely a UI suggestion; it is a **cryptographic security bound
 | **Modified Z-Score (MAD)** | $0.6745 \cdot \frac{x_i - \tilde{x}}{\text{MAD}}$ | **50% breakdown point robustness**. Accommodates outliers, scales identical to Gaussian, handles zero-variance gracefully. | ✅ **Selected & Defended** |
 
 ### 3.2 The Modified Z-Score Formula
-To provide high breakdown point (50%) robustness against outliers and eliminate variance distortion, DOGFOOD 2026 uses the Boris Iglewicz and David Hoaglin formulation:
+To provide high breakdown point (50%) robustness against outliers and eliminate variance distortion, OmniJudge uses the Boris Iglewicz and David Hoaglin formulation:
 
 $$\text{modified\_z}_i = \frac{0.6745 \cdot (x_i - \tilde{x})}{\text{MAD}}$$
 
@@ -182,7 +182,7 @@ function escapeCsvField(value: string | number): string {
 ```http
 HTTP/1.1 200 OK
 Content-Type: text/csv; charset=utf-8
-Content-Disposition: attachment; filename="dogfood_scores.csv"
+Content-Disposition: attachment; filename="omnijudge_scores.csv"
 Cache-Control: no-store, max-age=0
 ```
 Attempts by judges, participants, or anonymous visitors to request `/api/export.csv` are rejected with `403 Forbidden` or `401 Unauthorized`.

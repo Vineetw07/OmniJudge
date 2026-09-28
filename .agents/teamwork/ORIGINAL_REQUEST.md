@@ -823,3 +823,167 @@ Verify the Prisma schema and seed against fixtures.json expectations:
 ### Schema Completeness
 - [ ] All 11 models from the spec are in `schema.prisma` with correct relations
 - [ ] `AuditLog` captures both score create and update paths (upsert audit trail)
+
+## 2026-09-28T10:45:46Z
+
+Apply Midnight Obsidian Glass UI polish across the DOGFOOD 2026 hackathon portal (Next.js 14, Tailwind v3, Framer Motion 13, shadcn/ui) and run a complete freeze rehearsal to confirm all 7 acceptance checks still pass.
+
+Working directory: d:\TP\Hackathon\DogFood
+Integrity mode: development
+
+---
+
+## Critical Quality Invariants (MUST NOT BREAK)
+
+1. **Checker Green Guarantee:** `python Hack_docs/run.py .dogfood.toml` must produce 7/7 PASS (T1 + T2). Run it before and after every significant change.
+2. **Server-Rendered HTML Body:** `/projects` (src/app/projects/page.tsx) is an async Server Component that queries Prisma and renders fixture project titles ("Glass Signal", "Small Meadow", "Deep Compass") directly in the initial HTML body. This MUST remain an async Server Component. Do NOT convert it to a client-only fetch.
+3. **RBAC Isolation:** All API security parameter guards on `/api/judge/scores` and `/api/export.csv` must remain exactly as-is — no deletions, no weakening.
+4. **Zero-Network Invariant:** No external CDN requests or remote font imports. Fonts are already loaded locally via `next/font/local` from `src/app/fonts/`. All styles must remain Tailwind or inline CSS only.
+5. **No `&&` in PowerShell:** All shell commands must use PowerShell 5.1 syntax (separate statements or `;`).
+
+---
+
+## Tech Stack Baseline
+
+- **Framework:** Next.js 14.2.35 (App Router, TypeScript)
+- **Styles:** Tailwind CSS v3.4.1
+- **Animations:** Framer Motion 13.4.4 (already installed)
+- **Components:** shadcn/ui (Card, Badge, Button, Input, Label, Slider all available in `src/components/ui/`)
+- **Icons:** lucide-react 1.48.0
+- **Fonts:** Geist Sans + Geist Mono loaded locally via `next/font/local`
+- **DB:** Prisma 5.22 + SQLite (seeded with fixture data)
+
+---
+
+## Requirements
+
+### R1. Global Design System — Midnight Obsidian Glass
+
+Update `src/app/globals.css` and `src/app/layout.tsx` to establish the Midnight Obsidian Glass aesthetic:
+
+- **Body/canvas:** deep obsidian background `#07090e` / `#0a0d14` (set CSS vars `--background` and `--card` in the `:root` block to these dark values; add class `dark` to `<html>`). Override the current light-mode `:root` to use the dark palette throughout.
+- **Ambient glow:** add a fixed, non-interactive radial/conic gradient mesh as a pseudo-element or `<div aria-hidden>` behind all content — a soft cyan/indigo bloom at the top-center of the viewport (`radial-gradient(ellipse 80% 50% at 50% -10%, rgba(56,189,248,0.12), transparent)`).
+- **Glass surface tokens:** add Tailwind-compatible CSS custom properties: `--glass-bg: rgba(255,255,255,0.04)`, `--glass-border: rgba(255,255,255,0.08)`, `--glass-border-accent: rgba(56,189,248,0.3)`.
+- **Floating glass navbar:** replace the plain `<body>{children}</body>` wrapper with a layout that includes a sticky glass navbar (`backdrop-blur-md bg-white/[0.04] border-b border-white/[0.06]`) containing:
+  - Left: "DOGFOOD 2026" logo text + "PORTAL" monospace badge
+  - Center nav links: `/projects`, `/judge`, `/dashboard` (Next.js `<Link>`)
+  - Right: GitHub icon link (hardcode to `https://github.com/Vineetw07/dogfood-portal`) + Sign In link to `/login`
+  - The navbar must be a **Client Component** (for active link detection via `usePathname`) wrapped in a Server Component layout. Use `'use client'` on a `Navbar` component extracted to `src/components/Navbar.tsx`.
+- **Page entrance animation:** Wrap the `{children}` in `layout.tsx` with a Framer Motion `<motion.div>` that animates `opacity: 0, y: 10` → `opacity: 1, y: 0` with `duration: 0.35, ease: "easeOut"`. This wrapper must be a Client Component.
+
+### R2. Public Project Gallery Polish (`src/app/projects/page.tsx`)
+
+This is an async Server Component — preserve that. Add purely visual enhancements:
+
+- **Hero banner:** glowing pill badge (`✦ DOGFOOD 2026 PORTAL`) above a large headline "Project Gallery" + subtitle, with the ambient glow behind it.
+- **Track filter strip (client island):** extract a `ProjectsClient` component (`src/app/projects/projects-client.tsx` — `'use client'`) that receives the full projects array and handles client-side filtering by track. Track buttons: `All`, `Dev Tools`, `AI Agents`, `Infrastructure`, `Consumer`. The server page passes `projects` array to this client component.
+- **Glass project cards:** replace the existing plain `<Card>` styling with glass cards: `bg-[var(--glass-bg)] border-[var(--glass-border)] backdrop-blur-md` with hover state `hover:-translate-y-1 hover:shadow-[0_8px_32px_rgba(56,189,248,0.12)] hover:border-cyan-500/30`. Add track-specific color badges and a repo link button.
+- **Search input:** add a `<input>` with dark glass styling above the track strip, wired to a state variable that filters project titles client-side.
+- **INVARIANT:** `prisma.project.findMany(...)` query stays in the Server Component. All filtering is purely client-side from the full dataset already fetched server-side.
+
+### R3. Role-Aware Login Polish (`src/app/login/page.tsx`)
+
+Visual polish only — preserve all auth logic and role-based redirect exactly as-is:
+
+- **Background:** full obsidian canvas matching global theme.
+- **Glass login container:** wrap the card in `backdrop-blur-md bg-[var(--glass-bg)] border-[var(--glass-border)]` rounded-2xl.
+- **Electric cyan focus rings:** `focus:ring-2 focus:ring-cyan-500/40 focus:border-cyan-500/40` on the email input.
+- **Role selector chips:** redesign the test account quick-select grid — each chip gets a role-specific luminous border color: Organizer=amber, Judge Alpha=cyan, Judge Beta=indigo, Participant=emerald. Use `data-selected` state to show an active glow.
+- **Preserved logic:** `handleSubmit`, role redirect (`judge` → `/judge`, `organizer`/`admin` → `/dashboard`, else → `/projects`), error display — all unchanged.
+
+### R4. Judge Scoring Workspace Polish (`src/app/judge/judge-portal-client.tsx`)
+
+The judge page server component passes props to `JudgePortalClient` — polish that client file:
+
+- **Two-column ergonomic layout:** left column (project queue, ~35% width) + right column (scoring console, ~65%). On mobile: stack vertically.
+- **Project queue:** glass sidebar card showing all assigned projects, each with a status chip (`Scored` in cyan / `Pending` in slate). Clicking a project selects it into the right panel.
+- **Scoring console:** glass card styled like a developer terminal prompt — dark header bar with "⬢ SCORING CONSOLE", project title, track badge.
+- **Rubric sliders:** use the existing shadcn Slider component (or `<input type="range">`) for each criterion. Show live numeric readout next to each slider label.
+- **Live composite score gauge:** a large numeric display (e.g. `87.4 / 100`) that updates in real-time as sliders move. Style it prominently at the top of the console.
+- **Autosave indicator:** show a small indicator (e.g. "✓ Saved" fading in after POST succeeds, or a spinner while saving). Preserve the existing `fetch('/api/judge/scores', { method: 'POST', ... })` call exactly.
+
+### R5. Organizer Control Tower Polish (`src/app/dashboard/dashboard-client.tsx`)
+
+The dashboard server component passes props to `DashboardClient` — polish that client file:
+
+- **4 KPI stat cards:** Total Submissions, Active Judges, Evaluation Progress %, Remaining Reviews — each an illuminated glass card with a large number, label, and a colored lucide icon.
+- **MAD-Normalized Leaderboard:** glass table with rank badge (🥇🥈🥉 for top 3, numeric thereafter), project title, track, MAD-normalized score formatted to 2 decimal places, and number of reviews. Add a prominent "⬇ Export CSV (RFC 4180)" download button that links to `/api/export.csv` (anchor `download` attribute).
+- **Judge progress table:** glass table showing each judge's name, assigned tracks, scored/total projects, and a color-coded status badge (Completed=green, In Progress=amber, Not Started=slate).
+- **Audit trail:** chronological list of the last 15 audit entries with timestamp, action, user, and payload summary. Style as a terminal-like log feed.
+
+### R6. Freeze Rehearsal
+
+After all UI changes:
+
+1. Run `npm run typecheck` → must exit 0 errors.
+2. Run `npm run lint` → must exit 0 errors.
+3. Run `npm run build` → must complete successfully.
+4. Start the server: `npm run start` (background/daemon mode on port 8080).
+5. Run `python Hack_docs/run.py .dogfood.toml` → must produce 7/7 PASS.
+6. Update `PROGRESS.md`: mark all Phase 5 tasks `[x]`, add a row to the Checker History table with timestamp and "T1 PASS, T2 PASS (7/7)".
+7. Commit: `git commit -m "[PROGRESS] Phase 5: complete Midnight Obsidian UI polish, Framer Motion animations, and freeze rehearsal"`
+
+---
+
+## Continuity & Resumption Protocol
+
+**This task may be interrupted mid-execution if the model quota is exhausted. A new agent session will be started to continue. When resuming:**
+
+1. **Read `PROGRESS.md` first** — it is the source of truth for what has been completed. Each R1–R6 sub-task will be marked `[x]` as soon as it is verified complete.
+2. **Read the current state of every file you are about to edit** before touching it — do not assume it matches the original description above.
+3. **Run `npm run typecheck` and `python Hack_docs/run.py .dogfood.toml`** before making any new changes to confirm the current baseline is still green.
+4. **Pick up from the first incomplete `[ ]` item** in the Phase 5 checklist in `PROGRESS.md` and continue sequentially through R1 → R6.
+5. **Commit atomically after each requirement** (R1 through R6) so a crash after that point loses no work.
+
+**Atomic commit cadence (commit immediately after verifying each step):**
+- After R1: `git commit -m "[Phase5-R1] Midnight Obsidian global design system, glass navbar, Framer Motion page entrance"`
+- After R2: `git commit -m "[Phase5-R2] Glass project gallery, ProjectsClient island, search + track filter"`
+- After R3: `git commit -m "[Phase5-R3] Glass login, electric focus rings, role chip accents"`
+- After R4: `git commit -m "[Phase5-R4] Judge two-column workstation, live composite score, autosave indicator"`
+- After R5: `git commit -m "[Phase5-R5] Organizer control tower KPIs, glass leaderboard, audit trail"`
+- After R6: `git commit -m "[PROGRESS] Phase 5: complete Midnight Obsidian UI polish, Framer Motion animations, and freeze rehearsal"`
+
+**Update `PROGRESS.md` Phase 5 checklist** — expand `### Phase 5` with sub-tasks for R1–R6 as `- [ ]` items and tick them `[x]` immediately after each is verified. This is the checkpoint file a resumed session will read.
+
+---
+
+## Acceptance Criteria
+
+### Visual Design
+- [ ] All pages render on an obsidian `#07090e` background — no white or light-gray canvas visible anywhere.
+- [ ] A cyan/indigo ambient radial glow is visible at the top of at least the gallery and login pages.
+- [ ] The floating glass navbar is present on every page (layout level), uses `backdrop-blur-md`, and shows the DOGFOOD 2026 logo + nav links.
+- [ ] Project gallery cards have `backdrop-blur-md` glass styling and a `hover:-translate-y-1` lift on hover.
+- [ ] Login page chip selectors have role-specific accent borders (amber/cyan/indigo/emerald).
+- [ ] Judge scoring page shows a two-column layout with live composite score updating as sliders move.
+- [ ] Dashboard shows 4 KPI stat cards + glass leaderboard table + Export CSV button.
+
+### Code Quality
+- [ ] `npm run typecheck` exits with 0 TypeScript errors.
+- [ ] `npm run lint` exits with 0 ESLint errors.
+- [ ] `npm run build` completes without errors.
+
+### Acceptance Checker
+- [ ] `python Hack_docs/run.py .dogfood.toml` reports 7/7 PASS (T1 + T2) after all changes.
+- [ ] The initial HTML body of `/projects` still contains the fixture titles "Glass Signal", "Small Meadow", "Deep Compass" (SSR invariant — no client-only fetch).
+
+### Commit
+- [ ] `PROGRESS.md` Phase 5 tasks all marked `[x]`.
+- [ ] Git commit with message `[PROGRESS] Phase 5: complete Midnight Obsidian UI polish, Framer Motion animations, and freeze rehearsal` exists.
+
+---
+
+## Verification Resources
+
+- Acceptance checker: `python Hack_docs/run.py .dogfood.toml` (at repo root `d:\TP\Hackathon\DogFood`)
+- Session tokens (in `.dogfood.toml`):
+  - organizer: `Cookie: session=org_seed_token_2026`
+  - judge_a: `Cookie: session=jdg_a_seed_token_2026`
+  - judge_b: `Cookie: session=jdg_b_seed_token_2026`
+  - participant: `Cookie: session=prt_seed_token_2026`
+- TypeScript check: `npm run typecheck`
+- Lint: `npm run lint`
+- Build: `npm run build`
+- Start server: `npm run start` (port 8080, non-blocking daemon)
+
+*Expecting this to run as a full team build — 5 pages being restyled, a new Navbar component, and a complete freeze rehearsal with acceptance checker.*

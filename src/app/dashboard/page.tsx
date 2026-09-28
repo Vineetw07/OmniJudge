@@ -11,7 +11,7 @@ import { ShieldAlert, ArrowLeft } from 'lucide-react';
 export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
-  title: 'Organizer Dashboard | DOGFOOD 2026',
+  title: 'Organizer Dashboard | OmniJudge',
   description: 'Hackathon administration console, judging progress metrics, and MAD-normalized leaderboard.',
 };
 

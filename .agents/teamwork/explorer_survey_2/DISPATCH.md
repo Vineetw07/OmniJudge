@@ -1,25 +1,25 @@
-## 2026-09-27T09:38:19Z
+## 2026-09-28T10:48:25Z
+Your identity: Survey Explorer 2 (Role-Aware Login & Judge Scoring Workspace)
+Working directory: d:\TP\Hackathon\DogFood\.agents\teamwork\explorer_survey_2\
+Project Root: d:\TP\Hackathon\DogFood
 
-You are Survey Explorer 2 (Acceptance Checker & RBAC Boundary Explorer) for Phase 3 (T2 Judging) of DOGFOOD 2026.
-Your working directory is: d:\TP\Hackathon\DogFood\.agents\teamwork\explorer_survey_2
-Your parent is the Phase 3 Orchestrator (Conversation ID: 11b8f726-9a5b-4133-ab58-3e8b73870dcf).
+MANDATORY: Read d:\TP\Hackathon\DogFood\.agents\teamwork\ORIGINAL_REQUEST.md (specifically section ## 2026-09-28T10:45:46Z) before starting work. Do NOT summarize or filter it — read the exact requirements.
+Also read C:\Users\ASUS\.gemini\frontend-rules.md.
 
-You MUST read d:\TP\Hackathon\DogFood\.agents\teamwork\ORIGINAL_REQUEST.md thoroughly before starting.
+Your mission:
+Survey and investigate the current implementation for:
+1. R3: Role-Aware Login Polish:
+   - Inspect `src/app/login/page.tsx`.
+   - Analyze current auth state, form handling, role selector chips (Organizer, Judge Alpha, Judge Beta, Participant), and role-based redirects.
+   - Determine exact changes for obsidian canvas, glass container, electric cyan focus rings, and role-specific luminous border colors (amber, cyan, indigo, emerald) while strictly preserving all existing login logic.
+2. R4: Judge Scoring Workspace Polish:
+   - Inspect `src/app/judge/page.tsx` and `src/app/judge/judge-portal-client.tsx`.
+   - Analyze how props are passed from server to client.
+   - Design the 2-column layout (project queue ~35% width, scoring console ~65%, vertical stack on mobile).
+   - Analyze existing rubric criteria loading and sliders (using shadcn/ui Slider or input range).
+   - Check live composite score gauge calculation and autosave indicator behavior.
+   - Verify that POST `/api/judge/scores` call and RBAC integrity are preserved.
 
-Your task:
-Investigate the acceptance checker and configuration:
-1. `d:\TP\Hackathon\DogFood\Hack_docs\run.py`: Read the entire check suite, specifically focusing on lines 90 through end. Detail exactly how:
-   - `check_t1_gallery` works
-   - `check_t1_fixtures` works
-   - `check_t1_closed` works
-   - `check_t2_own_scores` works (HTTP method, headers, expected status code, response parsing)
-   - `check_t2_peer_scores` works (exact URL query params, cookie used, expected 403 status code)
-   - `check_t2_participant` works (expected 401 or 403 status code)
-   - `check_t2_csv` works (auth header, Content-Type, CSV header requirement: comma on first line, status code)
-2. `d:\TP\Hackathon\DogFood\.dogfood.toml`: Check current contents, routes, auth tokens, claimed tiers. What exact `peer_scores` route is configured? Does it match judge_a's actual DB user ID?
-3. Document any gotchas, timing issues, or strict response format requirements enforced by `run.py`.
-
-Write your findings to:
+Write your comprehensive findings and recommendations to:
 `d:\TP\Hackathon\DogFood\.agents\teamwork\explorer_survey_2\handoff.md`
-Format your report with: Observation, Logic Chain, Caveats, Conclusion, Verification Method.
-When done, send a message to parent summarizing your completion and referencing the handoff path.
+Send a completion message back when done.

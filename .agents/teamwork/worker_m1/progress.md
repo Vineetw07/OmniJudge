@@ -1,17 +1,17 @@
-# Progress — Worker M1 (Foundation Scaffold & Full Dependencies)
+# Progress Log - Worker M1
 
-Last visited: 2026-09-27T07:18:00Z
-Status: Completed all Milestone 1 tasks and verified cleanly.
+Last visited: 2026-09-28T10:57:00Z
+Status: Completed
 
-- [x] Initialized BRIEFING.md and DISPATCH.md
-- [x] Reviewed ORIGINAL_REQUEST.md, SCOPE.md, and explorer handoffs (1, 2, 3)
-- [x] Scaffold Next.js 14 via staging folder and copy into project root
-- [x] Git init
-- [x] Install production and dev dependencies
-- [x] Setup shadcn UI and add 15 components
-- [x] Sanitize layout.tsx (remove Geist font import)
-- [x] Initialize Prisma (sqlite)
-- [x] Configure package.json scripts and next.config.mjs
-- [x] Create .env, .env.example, .gitignore, LICENSE
-- [x] Run verification (typecheck / tsc --noEmit, eslint, 35/35 test suite)
-- [x] Write handoff.md and report to parent
+## Completed
+- [x] Initialized DISPATCH.md and BRIEFING.md
+- [x] Read ORIGINAL_REQUEST.md, frontend-rules.md, and explorer_survey_1/handoff.md
+- [x] Verified baseline typecheck and lint pass cleanly (0 errors)
+- [x] Updated `src/app/globals.css` with Midnight Obsidian color variables and glass design tokens
+- [x] Created `src/components/Navbar.tsx` (Client component, active route styling, inline GitHub SVG, links)
+- [x] Created `src/components/PageTransition.tsx` (Client component, Framer Motion entrance animation, reduced motion support)
+- [x] Updated `src/app/layout.tsx` (added `dark` class, ambient cyan/indigo bloom background div, mounted Navbar and PageTransition)
+- [x] Ran `npm run typecheck` (0 errors)
+- [x] Ran `npm run lint` (0 errors)
+- [x] Ran `npm run build` (success, all routes compiled cleanly)
+- [x] Executed atomic git commit `[Phase5-R1] Midnight Obsidian global design system, glass navbar, Framer Motion page entrance`

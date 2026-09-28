@@ -3,7 +3,6 @@ import Link from 'next/link';
 import { prisma } from '@/lib/prisma';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import {
   Sparkles,
   ShieldCheck,
@@ -17,7 +16,7 @@ import {
 export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
-  title: 'DOGFOOD 2026 | Autonomous Hackathon Submission & Judging Platform',
+  title: 'OmniJudge | Autonomous Hackathon Submission & Judging Platform',
   description:
     'Self-hostable, developer-first hackathon submission and judging platform with strict RBAC role isolation and MAD score normalisation.',
 };
@@ -38,7 +37,7 @@ export default async function HomePage() {
           {/* Top Pill Badge */}
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-cyan-500/30 bg-cyan-500/10 text-cyan-300 text-xs font-mono uppercase tracking-wider mb-6 shadow-[0_0_20px_rgba(56,189,248,0.15)] animate-in fade-in-0 duration-500">
             <Sparkles className="size-3.5 text-cyan-400" />
-            <span>DOGFOOD 2026 PLATFORM</span>
+            <span>OMNIJUDGE PLATFORM</span>
           </div>
 
           {/* Main Headline */}
@@ -87,7 +86,7 @@ export default async function HomePage() {
                 <span className="size-3 rounded-full bg-red-500/60 inline-block" />
                 <span className="size-3 rounded-full bg-amber-500/60 inline-block" />
                 <span className="size-3 rounded-full bg-emerald-500/60 inline-block" />
-                <span className="ml-2 font-mono text-xs text-slate-400">dogfood-gateway v2.6.0</span>
+                <span className="ml-2 font-mono text-xs text-slate-400">omnijudge-gateway v2.6.0</span>
               </div>
               <Badge
                 variant="outline"
@@ -101,7 +100,7 @@ export default async function HomePage() {
             <div className="space-y-2 font-mono text-xs text-slate-300">
               <div className="flex items-center gap-2 text-cyan-400">
                 <Terminal className="size-4 shrink-0" />
-                <span>$ dogfood audit --verify-tiers</span>
+                <span>$ omnijudge audit --verify-tiers</span>
               </div>
               <div className="p-3 rounded-lg bg-black/40 border border-white/5 space-y-1 text-slate-300">
                 <p className="text-emerald-400">✔ T1 Public Gallery &amp; Closed Submissions: PASS</p>
@@ -156,69 +155,117 @@ export default async function HomePage() {
       </section>
 
       {/* Feature Architecture Bento Grid */}
-      <section className="py-12 md:py-16 border-t border-white/5 bg-white/[0.01]">
-        <div className="max-w-[1560px] mx-auto px-4 sm:px-6 lg:px-8">
+      <section className="py-14 md:py-20 border-t border-white/5 bg-white/[0.01]">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-2xl mx-auto mb-12">
-            <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-white mb-3">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-white/10 bg-white/[0.04] text-slate-300 text-xs font-mono uppercase tracking-wider mb-3 shadow-sm">
+              <Sparkles className="size-3 text-cyan-400" />
+              <span>CORE ARCHITECTURE</span>
+            </div>
+            <h2 className="text-2xl sm:text-4xl font-extrabold tracking-tight text-white mb-3">
               Platform Architecture &amp; Core Invariants
             </h2>
-            <p className="text-sm text-slate-400">
-              Built to satisfy strict hackathon integrity standards with zero compromises on security or performance.
+            <p className="text-sm sm:text-base text-slate-400 leading-relaxed">
+              Built to satisfy strict hackathon integrity standards with zero compromises on security, fairness, or performance.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 items-stretch">
             {/* Card 1: Strict Role Separation */}
-            <Card className="border border-white/10 bg-white/[0.03] backdrop-blur-md hover:-translate-y-1 hover:border-cyan-500/30 hover:shadow-[0_8px_32px_rgba(56,189,248,0.1)] transition-all duration-200">
-              <CardHeader className="space-y-2">
-                <div className="size-10 rounded-xl bg-cyan-500/10 text-cyan-400 flex items-center justify-center border border-cyan-500/20">
-                  <ShieldCheck className="size-5" />
+            <div className="p-6 rounded-2xl bg-white/[0.03] border border-white/[0.08] backdrop-blur-md flex flex-col justify-between hover:-translate-y-1 hover:border-cyan-500/40 hover:shadow-[0_12px_32px_rgba(56,189,248,0.12)] transition-all duration-200 group">
+              <div>
+                <div className="flex items-center justify-between gap-2 mb-4">
+                  <div className="size-11 rounded-xl bg-cyan-500/10 text-cyan-400 flex items-center justify-center border border-cyan-500/25 group-hover:scale-105 transition-transform">
+                    <ShieldCheck className="size-5.5" />
+                  </div>
+                  <span className="text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-300 border border-cyan-500/20">
+                    Security
+                  </span>
                 </div>
-                <CardTitle className="text-lg font-bold text-white">Strict Role Isolation</CardTitle>
-                <CardDescription className="text-xs text-slate-400 leading-relaxed">
-                  Dedicated, segregated workspaces for Organizers (<code className="text-cyan-300">/dashboard</code>) and Judges (<code className="text-cyan-300">/judge</code>). Peer score tampering is blocked at the database level.
-                </CardDescription>
-              </CardHeader>
-            </Card>
+                <h3 className="text-lg font-bold text-white tracking-tight mb-2">
+                  Strict Role Isolation
+                </h3>
+                <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
+                  Dedicated, segregated workspaces for Organizers (<code className="text-cyan-300 font-mono">/dashboard</code>) and Judges (<code className="text-cyan-300 font-mono">/judge</code>). Peer score tampering is blocked at the database query level.
+                </p>
+              </div>
+              <div className="mt-5 pt-3.5 border-t border-white/5 flex items-center justify-between text-[11px] font-mono text-slate-400">
+                <span>RBAC Guard</span>
+                <span className="text-cyan-400 font-medium">Zero Leakage</span>
+              </div>
+            </div>
 
             {/* Card 2: MAD Normalization */}
-            <Card className="border border-white/10 bg-white/[0.03] backdrop-blur-md hover:-translate-y-1 hover:border-cyan-500/30 hover:shadow-[0_8px_32px_rgba(56,189,248,0.1)] transition-all duration-200">
-              <CardHeader className="space-y-2">
-                <div className="size-10 rounded-xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center border border-indigo-500/20">
-                  <Scale className="size-5" />
+            <div className="p-6 rounded-2xl bg-white/[0.03] border border-white/[0.08] backdrop-blur-md flex flex-col justify-between hover:-translate-y-1 hover:border-indigo-500/40 hover:shadow-[0_12px_32px_rgba(99,102,241,0.12)] transition-all duration-200 group">
+              <div>
+                <div className="flex items-center justify-between gap-2 mb-4">
+                  <div className="size-11 rounded-xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center border border-indigo-500/25 group-hover:scale-105 transition-transform">
+                    <Scale className="size-5.5" />
+                  </div>
+                  <span className="text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-300 border border-indigo-500/20">
+                    Fairness
+                  </span>
                 </div>
-                <CardTitle className="text-lg font-bold text-white">MAD Score Normalization</CardTitle>
-                <CardDescription className="text-xs text-slate-400 leading-relaxed">
-                  Outlier-resilient Median Absolute Deviation (Modified Z-Score) eliminates harsh or lenient judge bias with zero-variance mathematical protection.
-                </CardDescription>
-              </CardHeader>
-            </Card>
+                <h3 className="text-lg font-bold text-white tracking-tight mb-2">
+                  MAD Normalization
+                </h3>
+                <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
+                  Outlier-resilient Median Absolute Deviation (Modified Z-Score) eliminates harsh or lenient judge bias with mathematical zero-variance defense.
+                </p>
+              </div>
+              <div className="mt-5 pt-3.5 border-t border-white/5 flex items-center justify-between text-[11px] font-mono text-slate-400">
+                <span>Modified Z-Score</span>
+                <span className="text-indigo-400 font-medium">Bias-Free</span>
+              </div>
+            </div>
 
             {/* Card 3: Zero-Network Invariant */}
-            <Card className="border border-white/10 bg-white/[0.03] backdrop-blur-md hover:-translate-y-1 hover:border-cyan-500/30 hover:shadow-[0_8px_32px_rgba(56,189,248,0.1)] transition-all duration-200">
-              <CardHeader className="space-y-2">
-                <div className="size-10 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center border border-emerald-500/20">
-                  <Cpu className="size-5" />
+            <div className="p-6 rounded-2xl bg-white/[0.03] border border-white/[0.08] backdrop-blur-md flex flex-col justify-between hover:-translate-y-1 hover:border-emerald-500/40 hover:shadow-[0_12px_32px_rgba(16,185,129,0.12)] transition-all duration-200 group">
+              <div>
+                <div className="flex items-center justify-between gap-2 mb-4">
+                  <div className="size-11 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center border border-emerald-500/25 group-hover:scale-105 transition-transform">
+                    <Cpu className="size-5.5" />
+                  </div>
+                  <span className="text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-300 border border-emerald-500/20">
+                    Offline
+                  </span>
                 </div>
-                <CardTitle className="text-lg font-bold text-white">Zero-Network Resilience</CardTitle>
-                <CardDescription className="text-xs text-slate-400 leading-relaxed">
+                <h3 className="text-lg font-bold text-white tracking-tight mb-2">
+                  Zero-Network Resilience
+                </h3>
+                <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
                   100% offline self-hostable. Local SQLite database, local Geist typography, and zero external CDN or cloud dependencies for secure air-gapped evaluation.
-                </CardDescription>
-              </CardHeader>
-            </Card>
+                </p>
+              </div>
+              <div className="mt-5 pt-3.5 border-t border-white/5 flex items-center justify-between text-[11px] font-mono text-slate-400">
+                <span>--network none</span>
+                <span className="text-emerald-400 font-medium">Air-Gapped</span>
+              </div>
+            </div>
 
             {/* Card 4: RFC 4180 CSV Export */}
-            <Card className="border border-white/10 bg-white/[0.03] backdrop-blur-md hover:-translate-y-1 hover:border-cyan-500/30 hover:shadow-[0_8px_32px_rgba(56,189,248,0.1)] transition-all duration-200">
-              <CardHeader className="space-y-2">
-                <div className="size-10 rounded-xl bg-amber-500/10 text-amber-400 flex items-center justify-center border border-amber-500/20">
-                  <FileSpreadsheet className="size-5" />
+            <div className="p-6 rounded-2xl bg-white/[0.03] border border-white/[0.08] backdrop-blur-md flex flex-col justify-between hover:-translate-y-1 hover:border-amber-500/40 hover:shadow-[0_12px_32px_rgba(245,158,11,0.12)] transition-all duration-200 group">
+              <div>
+                <div className="flex items-center justify-between gap-2 mb-4">
+                  <div className="size-11 rounded-xl bg-amber-500/10 text-amber-400 flex items-center justify-center border border-amber-500/25 group-hover:scale-105 transition-transform">
+                    <FileSpreadsheet className="size-5.5" />
+                  </div>
+                  <span className="text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-300 border border-amber-500/20">
+                    Audit
+                  </span>
                 </div>
-                <CardTitle className="text-lg font-bold text-white">RFC 4180 CSV Export</CardTitle>
-                <CardDescription className="text-xs text-slate-400 leading-relaxed">
+                <h3 className="text-lg font-bold text-white tracking-tight mb-2">
+                  RFC 4180 CSV Export
+                </h3>
+                <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
                   Instant one-click leaderboard and audit log exports compliant with RFC 4180 standards, restricted strictly to authorized event organizers.
-                </CardDescription>
-              </CardHeader>
-            </Card>
+                </p>
+              </div>
+              <div className="mt-5 pt-3.5 border-t border-white/5 flex items-center justify-between text-[11px] font-mono text-slate-400">
+                <span>Standardized</span>
+                <span className="text-amber-400 font-medium">One-Click</span>
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -280,7 +327,7 @@ export default async function HomePage() {
       {/* Footer */}
       <footer className="mt-auto border-t border-white/5 py-8 text-center text-xs text-slate-500">
         <div className="max-w-[1560px] mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <p>© 2026 DOGFOOD Hackathon Portal. MIT License.</p>
+          <p>© 2026 OmniJudge Platform. MIT License.</p>
           <div className="flex items-center gap-6">
             <Link href="/projects" className="hover:text-slate-300 transition-colors">
               Gallery

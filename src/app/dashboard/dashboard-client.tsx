@@ -143,7 +143,7 @@ export function DashboardClient({
 
           {/* Prominent CSV Export CTA Button */}
           <div className="flex items-center gap-2">
-            <a href="/api/export.csv" download="dogfood_scores.csv">
+            <a href="/api/export.csv" download="omnijudge_scores.csv">
               <Button className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-semibold gap-2 shadow-[0_0_20px_rgba(56,189,248,0.25)] border border-cyan-400/30">
                 <Download className="size-4" />
                 <span>⬇ Export CSV (RFC 4180)</span>
@@ -301,7 +301,7 @@ export function DashboardClient({
                   <Badge variant="outline" className="text-xs bg-white/5 border-white/10 text-cyan-400 font-mono">
                     {filteredLeaderboard.length} Projects
                   </Badge>
-                  <a href="/api/export.csv" download="dogfood_scores.csv">
+                  <a href="/api/export.csv" download="omnijudge_scores.csv">
                     <Button
                       size="sm"
                       variant="outline"

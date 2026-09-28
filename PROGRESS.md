@@ -1,4 +1,4 @@
-# DOGFOOD 2026 — Live Progress Ledger
+# OmniJudge (DOGFOOD 2026) — Live Progress Ledger
 
 > **For agents:** Read this file FIRST before touching any code. Update it and commit after EVERY completed task.
 > Commit message format: `git commit -m "[PROGRESS] Phase X: <what was done>, <what is next>"`

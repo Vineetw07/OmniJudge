@@ -10,7 +10,7 @@ import { ShieldAlert, ArrowLeft } from 'lucide-react';
 export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
-  title: 'Judge Scoring Portal | DOGFOOD 2026',
+  title: 'Judge Scoring Portal | OmniJudge',
   description: 'Submit rubric-based scores and evaluations for assigned projects.',
 };
 

@@ -1,67 +1,71 @@
-# BRIEFING — 2026-09-27T07:18:00Z
+# BRIEFING — 2026-09-28T10:57:00Z
 
 ## Mission
-Implement Milestone 1 (Foundation): Next.js 14 scaffold, dependencies, shadcn UI components, layout sanitization, Prisma init, scripts, configs, and clean verification. [COMPLETED]
+Implement Milestone 1: Midnight Obsidian Glass design system tokens in globals.css, Glass Navbar with inline GitHub SVG, Framer Motion PageTransition, and update root layout.tsx with dark theme and ambient cyan bloom.
 
 ## 🔒 My Identity
-- Archetype: worker
+- Archetype: Implementer / QA / Specialist
 - Roles: implementer, qa, specialist
-- Working directory: d:\TP\Hackathon\DogFood\.agents\teamwork\worker_m1
-- Original parent: d13cfa1c-1a99-4f0b-be8e-29a865a627fb
-- Milestone: Milestone 1 (Foundation)
+- Working directory: d:\TP\Hackathon\DogFood\.agents\teamwork\worker_m1\
+- Original parent: aaa1f7f5-6bb6-49cc-b8cd-f714b5331069
+- Milestone: Milestone 1 (Phase 5 Round 1)
 
 ## 🔒 Key Constraints
-- Preserve existing files: Hack_docs, PROGRESS.md, Claude_chats.txt, dogfood_build_plan.md, .agents/.
-- Do NOT run create-next-app directly in root; use clean staging folder.
-- Next.js 14 (14.2.24 or 14.x) with TypeScript, Tailwind CSS, App Router, ESLint, src/ directory, @/* alias.
-- Install production dependencies: prisma, @prisma/client, zod, framer-motion, lucide-react, class-variance-authority, clsx, tailwind-merge.
-- Install dev dependencies: tsx, better-sqlite3, @types/better-sqlite3, @types/node.
-- Use npx shadcn@latest init --defaults --yes (NOT shadcn-ui).
-- Sanitize src/app/layout.tsx: remove Geist font imported from next/font/google.
-- Install all 15 components: button, card, badge, input, label, textarea, select, table, dialog, sheet, tabs, avatar, progress, separator, dropdown-menu.
-- Initialize Prisma with sqlite datasource provider.
-- Configure package.json scripts (dev on port 8080, build, start on 8080, seed, db:migrate, db:push, typecheck).
-- next.config.mjs with output: 'standalone'.
-- .env and .env.example with DATABASE_URL="file:./prisma/dogfood.db".
-- .gitignore with !.env.example and excluding node_modules, .next, .env, prisma/*.db*.
-- LICENSE MIT 2026 DOGFOOD 2026 Contributors.
-- Integrity: no cheating, no mock/facade implementations, verified via tsc --noEmit.
-- PowerShell 5.1 syntax: never use && or ||. Always sequential commands or ;.
+- Write Ownership exclusively:
+  - src/app/globals.css
+  - src/app/layout.tsx
+  - src/components/Navbar.tsx
+  - src/components/PageTransition.tsx
+- Do NOT cheat, fabricate, or hardcode test results.
+- Lucide-react does NOT export Github; use inline SVG.
+- Framer Motion useReducedMotion() support.
+- Ambient bloom radial gradient in layout.tsx.
+- Verification triad: typecheck, lint, passing cleanly.
+- Atomic git commit via PowerShell 5.1 syntax.
 
 ## Current Parent
-- Conversation ID: d13cfa1c-1a99-4f0b-be8e-29a865a627fb
-- Updated: 2026-09-27T07:18:00Z
+- Conversation ID: aaa1f7f5-6bb6-49cc-b8cd-f714b5331069
+- Updated: 2026-09-28T10:57:00Z
 
 ## Task Summary
-- **What to build**: Next.js 14 foundation project structure, complete dependencies, shadcn UI components, Prisma setup, configuration files.
-- **Success criteria**: Clean typecheck (tsc --noEmit), all 15 UI components present, package.json scripts correct, standalone build config, sqlite prisma configured.
-- **Interface contracts**: SCOPE.md at d:\TP\Hackathon\DogFood\.agents\teamwork\orchestrator_phase1\SCOPE.md
-- **Code layout**: Next.js 14 App Router under src/ (src/app, src/components, src/lib)
+- **What to build**: Midnight Obsidian CSS tokens, Glass Navbar component, PageTransition component, Root layout update.
+- **Success criteria**: Zero typecheck and lint errors, clean production build, atomic git commit.
+- **Interface contracts**: explorer_survey_1/handoff.md & ORIGINAL_REQUEST.md
+- **Code layout**: Next.js App Router (src/app, src/components)
 
 ## Key Decisions Made
-- Staging scaffold performed inside workspace at `staging_cna` to respect workspace permission boundaries, then non-conflicting files moved into root while preserving `Hack_docs/`, `PROGRESS.md`, `Claude_chats.txt`, `dogfood_build_plan.md`, `.agents/`.
-- Pinned `prisma` and `@prisma/client` to `5.22.0` because npm default latest tag resolved to experimental 8.0.0-rc which removed `--datasource-provider` and broke CLI flags.
-- Sanitized `src/app/layout.tsx` to use local fonts (`GeistVF.woff`) and remove next/font/google Geist import, enabling zero-error TypeScript compilation.
+- Updated `:root` and `.dark` in `src/app/globals.css` with `--background: #07090e`, `--card: #0a0d14`, and glass tokens `--glass-bg`, `--glass-border`, `--glass-border-accent`.
+- Implemented `src/components/Navbar.tsx` as a Client Component using `usePathname()` for active route styling, feather-compliant inline SVG for GitHub icon, and links for /projects, /judge, /dashboard, /login.
+- Implemented `src/components/PageTransition.tsx` with Framer Motion `<motion.div>` honoring `useReducedMotion()`.
+- Updated `src/app/layout.tsx` to set `className="dark"` on `<html>`, mounted ambient top cyan/indigo bloom radial gradient, mounted `<Navbar />`, and wrapped `{children}` in `<PageTransition>`.
+- Verified with `npm run typecheck`, `npm run lint`, and `npm run build` (all exit code 0).
+- Created atomic git commit `[Phase5-R1] Midnight Obsidian global design system, glass navbar, Framer Motion page entrance`.
 
 ## Artifact Index
-- `package.json` — dependencies and scripts
-- `next.config.mjs` — standalone output configuration
-- `src/app/layout.tsx` — sanitized root layout
-- `src/components/ui/` — 15 shadcn components
-- `prisma/schema.prisma` — initialized with sqlite provider
-- `.env`, `.env.example` — database URL configuration
-- `.gitignore` — ignore rules preserving `.env.example`
-- `LICENSE` — MIT 2026 DOGFOOD 2026 Contributors
+- d:\TP\Hackathon\DogFood\.agents\teamwork\worker_m1\DISPATCH.md
+- d:\TP\Hackathon\DogFood\.agents\teamwork\worker_m1\BRIEFING.md
+- d:\TP\Hackathon\DogFood\.agents\teamwork\worker_m1\progress.md
+- d:\TP\Hackathon\DogFood\.agents\teamwork\worker_m1\handoff.md
+- src/app/globals.css
+- src/app/layout.tsx
+- src/components/Navbar.tsx
+- src/components/PageTransition.tsx
 
 ## Change Tracker
-- **Files modified**: `package.json`, `next.config.mjs`, `src/app/layout.tsx`, `.gitignore`, `.env`, `.env.example`, `LICENSE`, `prisma/schema.prisma`
-- **Build status**: Pass (`tsc --noEmit` exits 0, `eslint` exits 0, 35/35 automated checks pass)
+- **Files modified**:
+  - `src/app/globals.css`: Obsidian palette, glass custom properties, and `.glass-card` utility.
+  - `src/app/layout.tsx`: Dark mode class, ambient bloom glow, Navbar, and PageTransition.
+  - `src/components/Navbar.tsx`: Sticky glass navigation bar with inline GitHub SVG and active path state.
+  - `src/components/PageTransition.tsx`: Smooth entrance animation with reduced motion support.
+- **Build status**: Pass (typecheck 0 errors, lint 0 errors, build exit code 0)
 - **Pending issues**: None
 
 ## Quality Status
-- **Build/test result**: Pass (0 errors)
-- **Lint status**: Pass (0 errors, 0 warnings)
-- **Tests added/modified**: 35-check automated verification suite executed and passed
+- **Build/test result**: Pass (typecheck, lint, build)
+- **Lint status**: 0 warnings, 0 errors
+- **Tests added/modified**: N/A (UI layout & design system milestone)
 
 ## Loaded Skills
-- None
+- **Source**: C:\Users\ASUS\.gemini\frontend-rules.md
+- **Local copy**: N/A
+- **Core methodology**: Semantic tokens, spatial scale, compound encapsulation, SSR boundaries, flex overflow containment, fluid motion & springs.
