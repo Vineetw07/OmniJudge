@@ -207,6 +207,21 @@ export function ProjectsClient({
     });
   }, [initialProjects]);
 
+  // Stable drawer handlers to prevent re-render cascades
+  const handleCommentCountChange = useCallback((projId: string, newCount: number) => {
+    setCommentCounts((prev) => {
+      if (prev[projId] === newCount) return prev;
+      return {
+        ...prev,
+        [projId]: newCount,
+      };
+    });
+  }, []);
+
+  const handleCloseDrawer = useCallback(() => {
+    setActiveCommentProject(null);
+  }, []);
+
   // Optimistic voting handler with rollback and error messaging
   const handleVote = async (projectId: string, projectTitle: string) => {
     if (votingInProgress === projectId) return;
@@ -714,15 +729,10 @@ export function ProjectsClient({
       <ProjectCommentsDrawer
         isOpen={!!activeCommentProject}
         project={activeCommentProject}
-        onClose={() => setActiveCommentProject(null)}
+        onClose={handleCloseDrawer}
         currentUserId={currentUserId}
         currentUserRole={currentUserRole}
-        onCommentCountChange={(projId, newCount) => {
-          setCommentCounts((prev) => ({
-            ...prev,
-            [projId]: newCount,
-          }));
-        }}
+        onCommentCountChange={handleCommentCountChange}
       />
     </div>
   );

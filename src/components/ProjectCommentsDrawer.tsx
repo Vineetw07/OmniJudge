@@ -112,6 +112,12 @@ export function ProjectCommentsDrawer({
   const commentsEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+  // Keep callback ref updated without triggering fetch effect
+  const onCommentCountChangeRef = useRef(onCommentCountChange);
+  useEffect(() => {
+    onCommentCountChangeRef.current = onCommentCountChange;
+  }, [onCommentCountChange]);
+
   // Close on Escape key press
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
@@ -141,9 +147,10 @@ export function ProjectCommentsDrawer({
     return () => clearTimeout(timer);
   }, [rateLimitCountdown]);
 
-  // Fetch comments when project opens
+  // Fetch comments when drawer opens or active project changes
+  const projectId = project?.id;
   useEffect(() => {
-    if (!isOpen || !project) {
+    if (!isOpen || !projectId) {
       setComments([]);
       setContent('');
       setSubmitError(null);
@@ -155,7 +162,7 @@ export function ProjectCommentsDrawer({
     setLoading(true);
     setFetchError(null);
 
-    fetch(`/api/community/comments?projectId=${encodeURIComponent(project.id)}`)
+    fetch(`/api/community/comments?projectId=${encodeURIComponent(projectId)}`)
       .then(async (res) => {
         if (!res.ok) {
           const data = await res.json().catch(() => ({}));
@@ -167,7 +174,7 @@ export function ProjectCommentsDrawer({
         if (!isMounted) return;
         const fetchedComments: CommentItem[] = data.comments || [];
         setComments(fetchedComments);
-        onCommentCountChange?.(project.id, fetchedComments.length);
+        onCommentCountChangeRef.current?.(projectId, fetchedComments.length);
       })
       .catch((err) => {
         if (!isMounted) return;
@@ -180,7 +187,7 @@ export function ProjectCommentsDrawer({
     return () => {
       isMounted = false;
     };
-  }, [isOpen, project, onCommentCountChange]);
+  }, [isOpen, projectId]);
 
   // Submit comment handler
   async function handleSubmit(e?: React.FormEvent) {
@@ -268,7 +275,7 @@ export function ProjectCommentsDrawer({
       );
 
       // Notify parent of updated comment count
-      onCommentCountChange?.(project.id, comments.length + 1);
+      onCommentCountChangeRef.current?.(project.id, comments.length + 1);
     } catch {
       // Roll back on network failure
       setComments((prev) => prev.filter((c) => c.id !== tempId));
