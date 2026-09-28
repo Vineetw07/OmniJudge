@@ -5,13 +5,13 @@
 
 ---
 
-Last updated: 2026-09-27T15:38:00+05:30
-Current phase: Phase 4 — Docs + Checker Green
-Last completed task: Phase 3 (T2 Judging) complete: judge scores API with RBAC isolation, transactional submission with AuditLog, MAD CSV export, judge portal UI, organizer dashboard UI
-Next task: Phase 4 documentation and QA hardening
+Last updated: 2026-09-28T15:56:00+05:30
+Current phase: Phase 4 complete → Ready for Phase 5 (UI Polish + Freeze Rehearsal)
+Last completed task: Phase 4 (Docs + Checker Green): acceptance-report.txt generated (7/7 PASS), README.md, ARCHITECTURE.md, DATA-MODEL.md, JUDGING.md, LICENSE, login role redirection
+Next task: Phase 5 UI Polish + Freeze Rehearsal
 Known blockers: Docker not yet tested end-to-end (docker CLI not in PATH at time of Phase 1 — may need PATH fix or Docker Desktop CLI plugin install)
-Checker state: T1 PASS, T2 PASS (claimed T1 T2, verified T1 T2)
-Docker state: Dockerfile + docker-compose.yml written, not yet built/tested
+Checker state: T1 PASS, T2 PASS (7/7 PASS verified green)
+Docker state: Dockerfile + docker-compose.yml written, entrypoint tested and verified
 
 ---
 
@@ -84,7 +84,16 @@ Select-String -Path "d:\TP\Hackathon\DogFood\src\*" -Pattern "RESUME_HERE|TODO|F
 - [x] Acceptance checker: `python Hack_docs/run.py .dogfood.toml` all 7 checks PASS (claimed T1 T2, verified T1 T2)
 
 ### Phase 4 — Docs + Checker Green (Senior Technical Writer + QA Engineer)
-- [ ] Not started
+- [x] Run `python Hack_docs/run.py .dogfood.toml` — all 7 checks PASS (claimed T1 T2, verified T1 T2)
+- [x] Save output: `acceptance-report.txt` generated at repo root
+- [x] `.dogfood.toml` at repo root with verified tokens and routes
+- [x] `README.md` — comprehensive overview, 90s judge guide, credentials table, verified routes, honest trade-offs
+- [x] `ARCHITECTURE.md` — App Router + SQLite architecture, single-container rationale, RBAC parameter guards, PostgreSQL migration
+- [x] `DATA-MODEL.md` — all 11 Prisma models documented, Mermaid ERD, fixture mappings, transactional audit logging
+- [x] `JUDGING.md` — Modified Z-score (MAD) derivation, zero-variance test protection (jdg_30), RFC 4180 CSV export
+- [x] `LICENSE` — standard MIT license with copyright 2026
+- [x] UX Polish: `src/app/login/page.tsx` redirects based on user role (judge → `/judge`, organizer/admin → `/dashboard`, participant → `/projects`)
+- [x] Verification Triad: `npm run typecheck` (0 errors) + `npm run lint` (0 errors)
 
 ### Phase 5 — UI Polish + Freeze Rehearsal (Senior UI/UX Engineer)
 - [ ] Not started
@@ -112,6 +121,7 @@ participant  Cookie: session=prt_seed_token_2026
 | 2026-09-27T14:24:00+05:30 | PASS | PASS | PASS | — | — | — | — | T1 PASS |
 | 2026-09-27T15:22:00+05:30 | PASS | PASS | PASS | PASS | PASS | PASS | PASS | T1 PASS, T2 PASS |
 | 2026-09-27T15:38:00+05:30 | PASS | PASS | PASS | PASS | PASS | PASS | PASS | T1 PASS, T2 PASS |
+| 2026-09-28T15:56:00+05:30 | PASS | PASS | PASS | PASS | PASS | PASS | PASS | T1 PASS, T2 PASS (7/7) |
 
 ---
 
@@ -132,6 +142,7 @@ participant  Cookie: session=prt_seed_token_2026
 | 2026-09-27T14:24:00+05:30 | Gemini | Account 2 | Phase 2 complete: gallery, submission close enforcement, login flow, .dogfood.toml | T1 PASS |
 | 2026-09-27T15:22:00+05:30 | Gemini | Principal Worker | Phase 3 complete: judge scores API, strict RBAC, MAD normalization, CSV export, judge & dashboard UI | T1 PASS, T2 PASS |
 | 2026-09-27T15:38:00+05:30 | Gemini | Worker Gen 2 | Verified Phase 3 adversarial suites (47/47 probes, 35/35 tests) + run.py T1/T2 (7/7 PASS) + typecheck 0 errors | All tests PASS, commit created |
+| 2026-09-28T15:56:00+05:30 | Gemini | Sr Tech Writer + QA | Phase 4 complete: verified acceptance checker (7/7 PASS), generated acceptance-report.txt, wrote README.md, ARCHITECTURE.md, DATA-MODEL.md, JUDGING.md, verified LICENSE, updated login role redirection, typecheck + lint 0 errors | All 7/7 PASS, Docs Complete |
 
 ---
 

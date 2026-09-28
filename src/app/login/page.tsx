@@ -45,7 +45,14 @@ export default function LoginPage() {
       }
 
       // Hard navigation ensures browser and Server Components reload with new session cookie
-      window.location.href = '/projects';
+      const role = data.user?.role?.toLowerCase();
+      if (role === 'judge') {
+        window.location.href = '/judge';
+      } else if (role === 'organizer' || role === 'admin') {
+        window.location.href = '/dashboard';
+      } else {
+        window.location.href = '/projects';
+      }
     } catch (err: unknown) {
       if (err instanceof Error) {
         setErrorMessage(err.message);

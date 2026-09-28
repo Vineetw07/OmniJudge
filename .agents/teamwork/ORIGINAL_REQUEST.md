@@ -712,3 +712,114 @@ Integrity mode: development
 - [ ] Final checker summary prints: `claimed T1 T2, verified T1 T2`.
 - [ ] `npm run typecheck` exits with 0 errors.
 - [ ] `PROGRESS.md` updated and committed to git.
+
+## 2026-09-27T10:24:12Z
+
+A comprehensive, adversarial self-review of the DOGFOOD 2026 hackathon portal — a self-hostable Next.js 14 + SQLite hackathon submission and judging platform — covering all work completed in Phases 1 through 3.
+
+Working directory: d:\TP\Hackathon\DogFood
+Integrity mode: development
+
+## Context
+
+The DOGFOOD 2026 portal is a hackathon judging platform built for the DOGFOOD 2026 competition, scored on:
+- **T1 (40%):** Public gallery, fixture project display, closed-submission enforcement
+- **T2 (25%):** Backend RBAC isolation for judging scores, MAD-normalized CSV export
+- **Adoptability (20%):** Single Docker container, one-command startup
+- **Code Quality (15%):** Schema integrity, TypeScript correctness, no runtime errors
+
+**Phases completed (claimed in PROGRESS.md):**
+- **Phase 1 — Foundation:** Next.js 14 scaffold, Prisma + SQLite schema (11 models), seed script, auth helpers, MAD normalization, Dockerfile, docker-compose.yml, entrypoint.sh
+- **Phase 2 — T1 Core:** Public gallery (`/projects`), submission deadline enforcement (`POST /api/projects`), login page, `.dogfood.toml`
+- **Phase 3 — T2 Judging:** Judge scores API with strict RBAC (`GET/POST /api/judge/scores`), MAD-normalized CSV export (`GET /api/export.csv`), judge portal UI (`/judge`), organizer dashboard (`/dashboard`), AuditLog trail
+
+**Checker state (last run):** All 7 checks PASS (T1 ✅, T2 ✅)
+
+## Key Files to Review
+
+- `d:\TP\Hackathon\DogFood\dogfood_build_plan.md` — full spec and phase requirements
+- `d:\TP\Hackathon\DogFood\PROGRESS.md` — live progress ledger
+- `d:\TP\Hackathon\DogFood\Hack_docs\spec.md` — official hackathon spec (ground truth)
+- `d:\TP\Hackathon\DogFood\Hack_docs\run.py` — acceptance checker (7 checks)
+- `d:\TP\Hackathon\DogFood\prisma\schema.prisma` — data model
+- `d:\TP\Hackathon\DogFood\src\lib\auth.ts` — session helpers
+- `d:\TP\Hackathon\DogFood\src\lib\normalization.ts` — MAD normalization
+- `d:\TP\Hackathon\DogFood\src\lib\seed.ts` — seed script
+- `d:\TP\Hackathon\DogFood\src\app\api\judge\scores\route.ts` — RBAC boundary (T2 critical)
+- `d:\TP\Hackathon\DogFood\src\app\api\export.csv\route.ts` — CSV export with MAD normalization
+- `d:\TP\Hackathon\DogFood\src\app\api\projects\route.ts` — submission deadline enforcement
+- `d:\TP\Hackathon\DogFood\src\app\projects\page.tsx` — public gallery page
+- `d:\TP\Hackathon\DogFood\.dogfood.toml` — acceptance checker config
+- `d:\TP\Hackathon\DogFood\tests\test_phase3_adversarial.py` — 35-test adversarial suite
+- `d:\TP\Hackathon\DogFood\tests\test_phase2_adversarial.py` — Phase 2 test suite
+
+## Requirements
+
+### R1. Code Quality Audit
+
+Read all source files in `src/` and `prisma/` and audit them against the spec (`dogfood_build_plan.md` and `Hack_docs/spec.md`). Identify:
+- TypeScript correctness issues (empty catch blocks, `@ts-ignore`, unsafe type assertions)
+- Logic bugs in RBAC enforcement (the `?judge=` param isolation is the critical check — verify the exact code path)
+- MAD normalization correctness — verify even-length median, zero-variance handling, and the `normaliseAllJudges` aggregation logic
+- Any `?.` optional chaining used to suppress what should be a hard error
+
+### R2. Acceptance Checker Alignment
+
+Cross-reference every check in `Hack_docs/run.py` against the actual implementation:
+- Check 5 (T2 critical): `GET /api/judge/scores?judge=judge_a` as `judge_b` → must return 403 from the **API route**, not the UI
+- Check 7: CSV first line must contain a comma — verify the header string in `export.csv/route.ts`
+- Check 3: Submission close logic uses `event.submissionsClose` from DB (not hardcoded)
+- Identify any gap between what `run.py` checks and what the code actually implements
+
+### R3. Security & RBAC Audit
+
+Audit every API route for security gaps:
+- Could a judge bypass the `?judge=` check by any other mechanism?
+- Does the participant block on `GET /api/judge/scores` happen before or after DB queries?
+- Is the CSV export truly organizer-only at the API layer, or only in the UI?
+- Does the AuditLog capture every score mutation (create + update paths)?
+- Are there any routes without authentication guards?
+
+### R4. MAD Normalization Correctness
+
+Formally verify `normaliseJudgeScores()` and `normaliseAllJudges()`:
+- Correct median formula for even-length arrays (uses both middle values, not just floor index)
+- Zero-variance guard returns `[0, 0, ...]` rather than NaN
+- The `normaliseAllJudges` output has the same set of project IDs as the input for each judge
+- Verify the `export.csv` route uses `normaliseAllJudges` and not the per-judge function directly
+
+### R5. Schema & Seed Integrity
+
+Verify the Prisma schema and seed against fixtures.json expectations:
+- Are all 11 models present and correctly related?
+- Does the seed script create the 4 deterministic session tokens correctly?
+- Are session expiry dates far enough in the future?
+- Is the `submissionsClose` seeded to `2026-03-01T18:00:00Z` (already past) as required?
+
+## Acceptance Criteria
+
+### Code Quality
+- [ ] No `@ts-ignore`, `// eslint-disable`, empty catch blocks, or `?.` used to suppress crashes
+- [ ] Every catch block either returns a proper error response or re-throws
+- [ ] No hardcoded dates or IDs that should come from the database
+
+### RBAC Correctness
+- [ ] `GET /api/judge/scores?judge=<peer_id>` returns 403 at the API layer (not just UI-hidden) when called by a different judge
+- [ ] Anonymous request to any auth-required route returns 401 (not 403 or 200)
+- [ ] Participant request to judge endpoints returns 403 (not 401 or 200)
+- [ ] CSV export route blocks judges and participants at the API layer before any DB query
+
+### MAD Normalization
+- [ ] `normaliseJudgeScores([3, 3, 3, 3])` returns `[0, 0, 0, 0]` (zero-variance guard)
+- [ ] Even-length array median is computed correctly (average of two middle values)
+- [ ] The `normaliseAllJudges` output has the same set of project IDs as the input for each judge
+- [ ] No NaN or undefined can appear in the CSV output
+
+### Checker Alignment
+- [ ] All 7 checks in `run.py` are demonstrably satisfied by the code, mapped one-to-one
+- [ ] `.dogfood.toml` routes match actual Next.js route file paths
+- [ ] `peer_scores = "/api/judge/scores?judge=user_jdg_a_01"` — the user ID in the TOML matches the seeded user ID
+
+### Schema Completeness
+- [ ] All 11 models from the spec are in `schema.prisma` with correct relations
+- [ ] `AuditLog` captures both score create and update paths (upsert audit trail)

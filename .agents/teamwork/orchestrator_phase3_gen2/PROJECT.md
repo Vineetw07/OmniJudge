@@ -46,4 +46,4 @@
 | 1 | M1: Judge Scores API & RBAC Isolation | `src/lib/auth.ts`, `src/app/api/judge/scores/route.ts` | None | DONE |
 | 2 | M2: Organizer CSV Export with MAD | `src/app/api/export.csv/route.ts` | M1 | DONE |
 | 3 | M3: Judging Portal & Dashboard UI | `src/app/judge/page.tsx`, `src/app/dashboard/page.tsx` | M1, M2 | DONE |
-| 4 | M4: Acceptance, Ledger & Git Commit | `Hack_docs/run.py`, `PROGRESS.md`, git commit | M1, M2, M3 | IN_PROGRESS |
+| 4 | M4: Acceptance, Ledger & Git Commit | `Hack_docs/run.py`, `PROGRESS.md`, git commit | M1, M2, M3 | DONE |
