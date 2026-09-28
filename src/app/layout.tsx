@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
+import { Navbar } from "@/components/Navbar";
+import { PageTransition } from "@/components/PageTransition";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -24,11 +26,27 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" className="dark">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen bg-background text-foreground flex flex-col relative`}
       >
-        {children}
+        {/* Ambient Top Cyan/Indigo Glow */}
+        <div
+          aria-hidden="true"
+          className="fixed inset-0 pointer-events-none -z-10 overflow-hidden"
+          style={{
+            background:
+              "radial-gradient(ellipse 80% 50% at 50% -10%, rgba(56, 189, 248, 0.12), transparent)",
+          }}
+        />
+
+        {/* Global Floating Glass Navbar */}
+        <Navbar />
+
+        {/* Page Entrance Animated Container */}
+        <PageTransition>
+          {children}
+        </PageTransition>
       </body>
     </html>
   );
