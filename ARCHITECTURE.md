@@ -1,4 +1,4 @@
-# DOGFOOD 2026 System Architecture & Engineering Specifications
+# OmniJudge System Architecture & Engineering Specifications
 
 > **A deep dive into the design principles, security model, and deployment invariants of the DOGFOOD 2026 Hackathon Portal.**
 
@@ -175,7 +175,7 @@ The community vote endpoint (`POST /api/community/vote`) adds a second RBAC enfo
   Authenticated session ──► Role permitted ──► Self-vote check
                                                       │
                            TeamMember.teamId ─────────┤
-                           === project.teamId?         │
+                           === project.teamId?        │
                                                       ▼
                                              [ 403 Forbidden ]
                                    "Team members cannot vote for
