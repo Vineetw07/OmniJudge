@@ -544,7 +544,7 @@ export function ProjectsClient({
         <>
           {/* Controls Container */}
           <div className="flex flex-col gap-4">
-        {/* Top Row: Search Input + System Status Banner */}
+        {/* Top Row: Search Input */}
         <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4">
           <div className="relative max-w-xl w-full">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-slate-400" />
@@ -564,23 +564,6 @@ export function ProjectsClient({
               >
                 <X className="size-4" />
               </button>
-            )}
-          </div>
-
-          {/* Results Status Badge */}
-          <div className="flex items-center gap-2">
-            {!showTotalVoteCounts ? (
-              <div className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white/[0.03] border border-white/[0.08] text-xs text-slate-300 font-medium">
-                <Shield className="size-3.5 text-cyan-400" />
-                <span>🔒 Results sealed until voting window closes</span>
-              </div>
-            ) : (
-              <div className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-xs text-emerald-300 font-medium">
-                <Sparkles className="size-3.5" />
-                <span>
-                  {resultsPublic ? '🔓 Community results public' : '👁️ Organizer Unsealed View'}
-                </span>
-              </div>
             )}
           </div>
         </div>
