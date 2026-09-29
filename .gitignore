@@ -50,3 +50,6 @@ prisma/*.db-shm
 
 # Internal development docs — not for judges
 docs/internal/
+/dogfood_build_plan.md
+/PROGRESS.md
+/Claude_chats.txt
