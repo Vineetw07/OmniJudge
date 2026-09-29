@@ -510,6 +510,7 @@ curl -s -H "Cookie: session=org_seed_token_2026" \
   "leaderboard": [
     {
       "rank": 1,
+      "trackRank": 1,
       "projectId": "prj_01",
       "title": "Glass Signal",
       "trackName": "Developer Tools & Infrastructure",
@@ -518,6 +519,7 @@ curl -s -H "Cookie: session=org_seed_token_2026" \
     },
     {
       "rank": 2,
+      "trackRank": 2,
       "projectId": "prj_04",
       "title": "Deep Compass",
       "trackName": "Developer Tools & Infrastructure",
@@ -526,6 +528,7 @@ curl -s -H "Cookie: session=org_seed_token_2026" \
     },
     {
       "rank": 3,
+      "trackRank": 1,
       "projectId": "prj_12",
       "title": "Small Meadow",
       "trackName": "AI & Machine Learning",
@@ -535,7 +538,10 @@ curl -s -H "Cookie: session=org_seed_token_2026" \
   ]
 }
 ```
-* **Sanitized Output Contract:** The response intentionally omits per-judge `Score` rows, `judgeId` fields, and all personal identifiers. Only the following fields are returned per entry: `rank`, `projectId`, `title`, `trackName`, `normalizedScore` (4 decimal places), `reviewCount`.
+* **Sanitized Output Contract:** The response intentionally omits per-judge `Score` rows, `judgeId` fields, and all personal identifiers. Only the following fields are returned per entry: `rank` (global normalized rank), `trackRank` (standing within the project's assigned track), `projectId`, `title`, `trackName`, `normalizedScore` (4 decimal places), `reviewCount`.
+* **Dual Leaderboard Architecture:**
+  * **Overall Standings (Grand Champion View):** Global rank (`rank`) sorted strictly by review status (reviewed > unreviewed), descending normalized MAD score, raw score, and project ID ASC.
+  * **Per-Track Standings (Category Winners View):** Track rank (`trackRank`) deterministically calculated per track category, enabling views to showcase category winners with 1st, 2nd, and 3rd place podium highlights alongside global context.
 * **Errors:**
   * `401 Unauthorized`: `{ "error": "Unauthorized: Valid session required" }`
   * `403 Forbidden`: `{ "error": "Results are not yet public" }`

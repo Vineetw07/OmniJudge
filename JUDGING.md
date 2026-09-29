@@ -163,6 +163,11 @@ The complete aggregation sequence executed in `src/app/api/export.csv/route.ts` 
 - **Reviewed vs. Unreviewed Separation:** Unreviewed projects have `normalized_score = 0.0000`. Without an evaluation status guard, an unreviewed project would incorrectly outrank a legitimately reviewed project that received negative normalized scores from strict judges. OmniJudge strictly partitions evaluated projects (`reviewCount > 0`) ahead of unreviewed projects (`reviewCount === 0`).
 - **IEEE 754 Floating-Point Guard ($\epsilon = 10^{-9}$):** Two normalized scores that differ only by binary floating-point representation noise are treated as equal, deferring to raw score and project ID rather than non-deterministic float jitter.
 
+### Dual Leaderboard Architecture (Global vs. Per-Track Category Standings)
+OmniJudge implements dual leaderboard projection:
+1. **Overall Standings (Grand Champion View):** Global leaderboard across all submissions sorted deterministically via Stages 1–5 (`rank`).
+2. **Per-Track Standings (Category Winners View):** As submissions are partitioned by track, category standings are re-indexed (`trackRank = 1, 2, 3...`) within each respective track. This preserves the relative ranking and tie-break determinism of the MAD scoring model while spotlighting individual category winners with Gold, Silver, and Bronze podium highlights without mutating global ranking data.
+
 ---
 
 ## 6. CSV Export Specification (RFC 4180 & CWE-1236 Compliance)

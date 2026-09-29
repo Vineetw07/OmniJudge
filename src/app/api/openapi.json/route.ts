@@ -299,6 +299,45 @@ export async function GET() {
           },
         },
       },
+      '/api/leaderboard': {
+        get: {
+          tags: ['Judging & Rankings'],
+          summary: 'Retrieve MAD-normalized dual leaderboard with overall and track-specific standings',
+          security: [{ CookieSession: [] }],
+          responses: {
+            '200': {
+              description: 'Dual leaderboard dataset',
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      resultsPublic: { type: 'boolean' },
+                      leaderboard: {
+                        type: 'array',
+                        items: {
+                          type: 'object',
+                          properties: {
+                            rank: { type: 'integer' },
+                            trackRank: { type: 'integer' },
+                            projectId: { type: 'string' },
+                            title: { type: 'string' },
+                            trackName: { type: 'string' },
+                            normalizedScore: { type: 'number' },
+                            reviewCount: { type: 'integer' },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            '401': { description: 'Unauthorized' },
+            '403': { description: 'Forbidden (Results sealed for non-organizer)' },
+          },
+        },
+      },
       '/api/export.csv': {
         get: {
           tags: ['Data Portability'],
