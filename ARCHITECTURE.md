@@ -256,7 +256,7 @@ volumes:
 
 ### Compatibility Audit
 - **Types:** All fields in `prisma/schema.prisma` use standard scalar types (`String`, `Int`, `Float`, `Boolean`, `DateTime`, `Json`) fully supported by both SQLite and PostgreSQL.
-- **Transactions:** `prisma.$transaction([ ... ])` used in `src/app/api/judge/scores/route.ts` seamlessly translates from SQLite `BEGIN IMMEDIATE` to PostgreSQL ACID transactions with snapshot isolation.
+- **Transactions:** `prisma.$transaction(async (tx) => { ... })` (the **interactive transaction** form) is used in `src/app/api/judge/scores/route.ts`. This form passes a transactional Prisma client (`tx`) to the callback, grouping all reads and writes — jurisdiction checks, COI lookups, score upserts, and audit log creation — into a single atomic unit. On SQLite this maps to `BEGIN IMMEDIATE … COMMIT`; on PostgreSQL it translates directly to `BEGIN … COMMIT` with full ACID snapshot isolation, with zero application code changes required.
 
 ---
 

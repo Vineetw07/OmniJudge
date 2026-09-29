@@ -81,15 +81,15 @@ Multiplying $(x_i - \tilde{x})$ by $0.6745 / \text{MAD}$ (or dividing by $1.4826
 
 ---
 
-## 4. Adversarial Test Design: Defeating Zero-Variance Fixture Tortures (`jdg_30`, `jdg_07`)
+## 4. Adversarial Test Design: Defeating Zero-Variance Fixture Tortures (`jdg_30`, `jdg_01`, `jdg_23`)
 
 We didn't just write code; we designed the normalization engine to survive the official DOGFOOD 2026 adversarial fixtures without crashing or corrupting the CSV export.
 
 ### The Traps in `fixtures.json`
 The official DOGFOOD evaluation dataset (`Hack_docs/fixtures.json`) includes multiple adversarial zero-variance and low-sample edge cases explicitly designed to crash naive normalizers:
-- **`jdg_30` (Rafa Okonkwo):** Awarded identical scores of `3.0` across all evaluated projects ($X = [3.0, 3.0, ...]$).
-- **`jdg_07` (Iva Petrova):** Awarded identical scores of `4.0` across all 3 evaluated projects ($X = [4.0, 4.0, 4.0]$).
+- **`jdg_30` (Rafa Okonkwo):** Awarded identical raw scores of `4.0` across all 4 evaluated projects ($X = [4.0, 4.0, 4.0, 4.0]$).
 - **Single-Review Judges (`jdg_01`, `jdg_23`):** Evaluated exactly one project ($N = 1$), which mathematically produces a deviation $|x_1 - \tilde{x}| = 0.0$.
+- **IEEE-754 1-ULP Composite Drift:** When weighted rubrics are computed (e.g., weights $0.7/0.2/0.1$), mathematically equal composites can differ by 1 unit in the last place ($\sim 2.22 \times 10^{-16}$). Naive `mad === 0` comparisons fail, producing a microscopic divisor and exploding $z$-scores to $\approx 3 \times 10^{15}$.
 
 ### Mathematical Outcome
 1. Raw scores: $X = [c, c, ...]$
@@ -104,19 +104,22 @@ When sorting or serializing to CSV, `NaN` propagates through calculations, resul
 
 ### Our Solution (`src/lib/normalization.ts`)
 ```typescript
-// Zero-variance guard: judge gave every project the same score or evaluated only 1 project.
-// Return neutral zeros — no signal, no crash.
-if (mad === 0) {
+export const EPSILON = 1e-9;
+
+// Zero-variance & floating-point precision guard:
+// Handles identical scores, single-review panels, and IEEE-754 1-ULP composite differences.
+// When MAD < EPSILON, return neutral zeros — no signal, no crash, no 10^15 z-score blowup.
+if (mad < EPSILON) {
   return scores.map(() => 0);
 }
 
-// Map each score with finite-number verification
-return scores.map((s) => {
-  const norm = (0.6745 * (s - median)) / mad;
-  return Number.isFinite(norm) ? norm : 0;
-});
+const minSpread = options?.minSpread;
+const scale = minSpread !== undefined ? Math.max(mad, minSpread / 0.6745) : mad;
+const shrink = options?.shrink ? scores.length / (scores.length + 3) : 1;
+
+return scores.map((s) => (shrink * 0.6745 * (s - median)) / scale);
 ```
-**Domain Rationale:** A judge who awards identical scores provides **zero discriminating information** between projects. Setting their modified Z-scores to `0.0` reflects neutral baseline performance, contributing $0$ deviation to the projects' normalized composite, completely eliminating `NaN` and divide-by-zero crashes.
+**Domain Rationale & Zero-Variance Guard ($MAD = 0 \implies \text{score} = 0.0$):** A judge who awards identical scores provides **zero discriminating information** between projects. Setting their modified Z-scores to `0.0` reflects neutral baseline performance, contributing $0$ deviation to the projects' normalized composite, completely eliminating `NaN`, divide-by-zero crashes, and floating-point inflation.
 
 ---
 
@@ -138,7 +141,7 @@ The complete aggregation sequence executed in `src/app/api/export.csv/route.ts` 
                 ▼
   [ Stage 3: MAD Normalization ]
     Apply normaliseJudgeScores() per judge
-    Handle MAD == 0 -> 0.0 (e.g. jdg_30, jdg_07, single-review panels)
+    Handle MAD < 1e-9 -> 0.0 (e.g. jdg_30, single-review panels, 1-ULP drift)
                 │
                 ▼
   [ Stage 4: Cross-Judge Aggregation ]

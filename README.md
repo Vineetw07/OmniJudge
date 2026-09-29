@@ -7,7 +7,7 @@
 
 ## 🏆 What Makes OmniJudge Different
 
-1. **Mathematical Defensibility (MAD):** We don't just average scores. We implemented Modified Z-Score Normalization via Median Absolute Deviation (MAD), proving its 0.6745 derivation and defending against zero-variance judge edge-cases (`jdg_30`, `jdg_07`) that crash naive systems.
+1. **Mathematical Defensibility (MAD):** We don't just average scores. We implemented Modified Z-Score Normalization via Median Absolute Deviation (MAD), proving its 0.6745 derivation and defending against zero-variance judge edge-cases (`jdg_30`, single-review panels) and IEEE-754 precision drift that crash naive systems.
 2. **Zero-Trust Security Perimeter:** Role isolation isn't just UI conditional rendering. Every route handler enforces parameter-level perimeter checks, stopping peer-snooping (IDOR) and collusive self-voting (`TeamMember` relational checks) before database queries ever execute.
 3. **Tier 4 Stretch Surface Completed:** Beyond T1/T2, OmniJudge delivers cryptographically signed HMAC-SHA256 judge certificates, non-blocking asynchronous webhooks, an embeddable iframe gallery, bulk import/export, and a full OpenAPI 3.1.0 interactive explorer.
 4. **Offline Operational Supremacy:** Built on Prisma with embedded SQLite. `docker compose up` in an air-gapped (`--network none`) environment works perfectly. No external database, no cloud APIs, zero downtime.
@@ -19,7 +19,7 @@
 | Official DOGFOOD Evaluation Criterion | Weight | OmniJudge Implementation & Proof Locations | Verified Status |
 | :--- | :---: | :--- | :---: |
 | **Tier Completion & Correctness** | **40%** | • **T1 + T2 (Automated):** `python Hack_docs/run.py .dogfood.toml` (7/7 PASS)<br>• **T3 (Public / Community):** Ballots randomized per session (Fisher-Yates), sealed results invariant (`totalVotes: null`), self-vote relational defense (`403`), 10s comment rate limits, stored XSS sanitization.<br>• **T4 (Stretch Surface):** Embeddable iframe gallery (`/embed/projects`), HMAC-SHA256 verifiable judge records (`/verify`), real-time webhook engine (`/api/webhooks`), bulk JSON import/export (`/api/export.json`, `/api/import`), and OpenAPI 3.1 explorer (`/api-docs`). | **7 / 7 PASS**<br>*(T3 & T4 manual walkthroughs below)* |
-| **Judging Integrity** | **25%** | • **Backend Role Isolation:** Peer score snooping rejected at HTTP boundary (`403 Forbidden`).<br>• **Conflict of Interest (COI):** Relational traversal (`TeamMember.teamId === project.teamId`) prevents judges from scoring own projects (`403`).<br>• **Score Normalization:** Modified Z-Score via Median Absolute Deviation (MAD) with zero-variance defense (`jdg_30`, `jdg_07`, single-review panels) and CWE-1236 CSV injection protection.<br>• **Audit Trail:** Append-only immutable `AuditLog` table on all scoring/voting writes. | **100% Verified**<br>*(See [JUDGING.md](./JUDGING.md) & [THREAT-MODEL.md](./THREAT-MODEL.md))* |
+| **Judging Integrity** | **25%** | • **Backend Role Isolation:** Peer score snooping rejected at HTTP boundary (`403 Forbidden`).<br>• **Conflict of Interest (COI):** Relational traversal (`TeamMember.teamId === project.teamId`) prevents judges from scoring own projects (`403`).<br>• **Score Normalization:** Modified Z-Score via Median Absolute Deviation (MAD) with zero-variance defense (`jdg_30`, single-review panels, 1-ULP drift) and CWE-1236 CSV injection protection.<br>• **Audit Trail:** Append-only immutable `AuditLog` table on all scoring/voting writes. | **100% Verified**<br>*(See [JUDGING.md](./JUDGING.md) & [THREAT-MODEL.md](./THREAT-MODEL.md))* |
 | **Adoptability & Operability** | **20%** | • **One Command Rule:** `docker compose up` brings up seeded portal in `--network none` (zero cloud/network calls).<br>• **Deterministic Seeding:** Loads official `Hack_docs/fixtures.json` (40 projects, 30 judges, 8 tracks).<br>• **Zero External DB:** Embedded SQLite via Prisma with clean 4-step migration path to PostgreSQL in `ARCHITECTURE.md`.<br>• **License:** Standard MIT open-source license. | **100% Offline-Ready**<br>*(See [ARCHITECTURE.md](./ARCHITECTURE.md))* |
 | **Code Quality & Innovation** | **15%** | • Next.js 14 App Router with React Server Components (RSC) and Route Handlers.<br>• Schema boundaries with Zod parsing and Prisma transactions (`prisma.$transaction`).<br>• Cryptographically signed evaluation certificates (HMAC-SHA256).<br>• Dark-mode responsive UI with Tailwind CSS, shadcn/ui, and Framer Motion. | **Production Grade**<br>*(See [API.md](./API.md) & `/api-docs`)* |
 | **Bonus Challenges** | **Tie-Break** | • **Normalization Proof:** Fully derived in [JUDGING.md](./JUDGING.md).<br>• **Threat Model:** Exhaustive attack-surface taxonomy in [THREAT-MODEL.md](./THREAT-MODEL.md).<br>• **API First:** Complete OpenAPI 3.1.0 spec at `/api/openapi.json` and interactive UI at `/api-docs`. | **3 / 4 Bonuses Shipped** |
@@ -98,6 +98,7 @@ All endpoints adhere strictly to HTTP standards, status codes, and security poli
 | `/api/judge/scores` | `GET` | Participant | Participant attempt to query judging scores is rejected with `403 Forbidden`. |
 | `/api/judge/scores` | `POST` | Judge | Atomic, transactional rubric score submission. Enforces track jurisdiction and team Conflict of Interest (COI) check (`403 Forbidden`). Upserts `Score` records and writes `AuditLog` in one ACID transaction. |
 | `/api/export.csv` | `GET` | Organizer | Computes MAD-normalized scores across all criteria and tracks. Emits RFC 4180 & CWE-1236 compliant CSV (verified header comma, formula triggers sanitized). Rejected for judges/participants (`403`). |
+| `/api/leaderboard` | `GET` | Auth Required | Returns MAD-normalized public leaderboard. Returns `403 Forbidden` while `resultsPublic === false` for non-organizer roles (sealed-results invariant). |
 | `/dashboard` | `GET` | Organizer | Live control tower: aggregate scoring progress, criteria distribution, track breakdown, real-time MAD leaderboard, audit log stream, **Community Voting Governance card** (total votes, unique voters, top 5 favorites, seal/unseal toggle). |
 | `/judge` | `GET` | Judge | Scoring cockpit: assigned track selector, criteria slider inputs, composite calculation, instant score autosave. |
 | `/api/community/vote` | `GET` | Any Auth | Returns `{ hasVoted, totalVotes }`. `totalVotes` is `null` for non-organizers while results are sealed (prevents bandwagon leakage). |
@@ -122,56 +123,79 @@ All endpoints adhere strictly to HTTP standards, status codes, and security poli
 
 Here is a 5-minute evaluation walkthrough for human judges:
 
-### 1. Test Ballot Randomization & Sealed Results (Proves: Presentation Bias Mitigation & Anti-Bandwagon)
-- Navigate to [`/login`](http://localhost:8080/login) and click the **1-Click "Log in as Participant"** button.
-- You will be redirected to [`/projects`](http://localhost:8080/projects).
-- **Presentation Bias Mitigation:** Notice that projects are randomized per browser session using the **Fisher-Yates algorithm** (stabilized in `sessionStorage`), ensuring every project gets fair visual exposure rather than the first project hoarding all votes.
-- **Sealed Results Invariant:** Notice the emerald **"Results Sealed"** indicator badge. Inspect network traffic: `totalVotes` is returned as `null` over the wire while voting is active, eliminating bandwagon cascade effects.
+### 1. Peer Isolation defense
+- Test: **`403 Forbidden`** when Judge B requests Judge A's scores.
+- Action: Log in as Judge B (`judge_b@dogfood.dev`) and attempt to hit the API route `/api/judge/scores?judge=user_jdg_a_01` (Judge A's ID).
+- Result: The HTTP boundary intercepts the IDOR attempt and returns a strict `403 Forbidden` without hitting the database.
+```bash
+# Judge B attempts to snoop Judge A's scores → must return 403
+curl -s -o /dev/null -w "%{http_code}" \
+  -H "Cookie: session=jdg_b_seed_token_2026" \
+  "http://localhost:8080/api/judge/scores?judge=user_jdg_a_01"
+# Expected output: 403
+```
 
-### 2. Test Anti-Collusion Relational Defense (Proves: Role Boundary & COI Defense)
-- As `participant@dogfood.dev` (member of team `tm_01`, project `prj_01` *"Glass Signal"*):
-- Attempt to vote for *"Glass Signal"*.
-- The UI displays an amber lock badge *"Own Project"* and the API returns **`403 Forbidden`** via `TeamMember` relational verification. Participants can never vote for their own team!
+### 2. MAD Normalization handling the zero-variance fixture judge
+- Test: The system correctly processes zero-variance judges (like `jdg_30` Rafa Okonkwo).
+- Action: View the CSV export at `/api/export.csv` as an Organizer (`organizer@dogfood.dev`).
+- Result: You will see valid normalized scores for projects evaluated by `jdg_30` and single-evaluation panels, rather than the system crashing with `NaN` due to standard Z-Score division-by-zero.
+```bash
+# Export CSV — verify no NaN in normalized_score column for jdg_30's projects
+curl -s -H "Cookie: session=org_seed_token_2026" \
+  "http://localhost:8080/api/export.csv" | head -5
+# Expected: valid numeric normalized_score values (0.0000), NOT NaN
+```
 
-### 3. Test Qualitative Feedback & Anti-Spam Rate Limiting (Proves: XSS Sanitization & DoS Protection)
-- Click the **"💬 Feedback"** button on any project card to open the slide-over drawer.
-- Post a comment: note the real-time server timestamp and verified author role badge (`Participant`).
-- Try submitting a second comment immediately: the server enforces a **10-second sliding-window cooldown** (`429 Too Many Requests`).
-- Stored XSS defense: Any embedded `<script>` or HTML tags are stripped server-side before storage.
+### 3. Community Voting with anti-self-vote defense
+- Test: **`403 Forbidden`** when team members vote for their own project.
+- Action: Log in as `participant@dogfood.dev` (Team: `tm_01`, Project: *"Glass Signal"*). Attempt to upvote *"Glass Signal"*.
+- Result: A lock badge appears on the UI, and the API returns `403 Forbidden` based on a secure `TeamMember` relational traverse, preventing self-collusion.
+```bash
+# Participant votes for their own team's project → must return 403
+curl -s -o /dev/null -w "%{http_code}" \
+  -X POST http://localhost:8080/api/community/vote \
+  -H "Cookie: session=prt_seed_token_2026" \
+  -H "Content-Type: application/json" \
+  -d '{"projectId":"prj_01"}'
+# Expected output: 403
+```
 
-### 4. Test Organizer Governance & Live Unsealing (Proves: Immutable Audit Trails & Lifecycle Control)
-- Log in as `organizer@dogfood.dev` and visit [`/dashboard`](http://localhost:8080/dashboard).
-- Scroll to the **Community Voting Governance card**: view total votes cast, unique voter count, and top 5 community favorites.
-- Toggle the **"Results Public"** switch.
-- Return to [`/projects`](http://localhost:8080/projects): the sealed shield disappears, and live vote tallies are dynamically revealed!
+### 4. Embeddable gallery widget
+- Test: Distraction-free iframe widget at `/embed/projects`.
+- Action: Navigate directly to [`/embed/projects`](http://localhost:8080/embed/projects).
+- Result: A clean gallery widget designed for third-party embedding, powered by `Content-Security-Policy: frame-ancestors *` headers.
+```bash
+# Verify the embed endpoint returns 200 with frame-ancestors * CSP header
+curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/embed/projects
+# Expected output: 200
+# Navigate to http://localhost:8080/embed/projects in a browser to see the widget
+```
 
-### 5. Test Embeddable Gallery Widget (Proves: T4 Pillar 1 - CSP Security & Distraction-Free UX)
-- Visit [`/projects`](http://localhost:8080/projects) and click the **"Embed Gallery"** button at the top right.
-- Copy the provided `<iframe>` snippet or navigate directly to [`/embed/projects`](http://localhost:8080/embed/projects).
-- Note the streamlined, distraction-free gallery view without navigation headers, complete with instant category filtering and real-time search.
-- Verify that `next.config.mjs` serves `Content-Security-Policy: frame-ancestors *` and open CORS headers for seamless third-party embedding.
+### 5. Cryptographic Judge Certificates & Public Verification
+- Test: HMAC-SHA256 evaluation credentials at `/verify`.
+- Action: Log in as a judge, click **"Verifiable Judge Certificate"**, and visit the [`/verify`](http://localhost:8080/verify) link with your unique token.
+- Result: Cryptographically verified badge displays. Tampering with a single character in the URL immediately invalidates the signature.
+```bash
+# Generate a signed HMAC-SHA256 judge certificate
+curl -s -H "Cookie: session=jdg_a_seed_token_2026" \
+  http://localhost:8080/api/judge/certificate
+# Copy the verificationUrl from the response, paste into browser, or use:
+curl -s -X POST http://localhost:8080/api/judge/certificate \
+  -H "Content-Type: application/json" \
+  -d '{"token":"<paste verificationToken here>"}'
+```
 
-### 6. Test Cryptographically Signed Judge Certificates (Proves: T4 Pillar 2 - HMAC-SHA256 Anti-Tamper)
-- Log in as `judge_a@dogfood.dev` and visit [`/judge`](http://localhost:8080/judge).
-- Click **"Verifiable Judge Certificate"** in the judging header.
-- View the issued cryptographic certificate, complete with HMAC-SHA256 signature, completion percentage, and unique credential ID.
-- Click **"Copy Verification Link"** or visit [`/verify`](http://localhost:8080/verify) with the `?record=<token>` query parameter.
-- Notice the emerald **"Cryptographically Verified"** badge. Test tampering resistance by editing any character in the URL token—the verifier immediately detects tampering and flags an invalid signature!
+### 6. OpenAPI 3.1 REST Explorer
+- Test: Interactive documentation at `/api-docs`.
+- Action: Visit [`/api-docs`](http://localhost:8080/api-docs).
+- Result: An interactive, dark-mode OpenAPI 3.1 explorer detailing all platform endpoints and request/response schemas.
+```bash
+# Verify the OpenAPI spec is live and valid
+curl -s http://localhost:8080/api/openapi.json | head -c 200
+# Navigate to http://localhost:8080/api-docs for the interactive UI
+```
 
-### 7. Test Real-Time Webhooks Engine & Bulk Export/Import (Proves: T4 Pillars 3 & 4 - Async Dispatch & ACID Imports)
-- Log in as `organizer@dogfood.dev` and visit [`/dashboard`](http://localhost:8080/dashboard).
-- Click on the new **"Webhooks & T4"** tab in the control tower.
-- **Webhooks:** Register a new webhook endpoint (e.g., `https://webhook.site/test` with events `score.submitted`, `vote.cast`, `results.unsealed`). Click **"Test Ping"** to verify HMAC-SHA256 signature generation (`X-OmniJudge-Signature-256`) and non-blocking asynchronous dispatch.
-- **Bulk Export:** Click **"Export Full State (JSON)"** to download the complete database state (`/api/export.json`), including MAD-normalized standings, criteria, tracks, and teams.
-- **Bulk Import:** Use **"Bulk Fixture Import"** to post transactional updates to `/api/import`.
-
-### 8. Test OpenAPI 3.1 & Interactive REST API Explorer (Proves: T4 Pillar 5 - API-First Design)
-- Visit [`/api-docs`](http://localhost:8080/api-docs) or click the **"API Docs"** link in the navigation header.
-- Explore the interactive dark-mode documentation for all 12 platform endpoints.
-- Filter by tags (`Judging`, `Community Voting`, `Webhooks`, `Export & Import`), inspect request/response schemas, and copy pre-formatted cURL commands with authentication headers.
-- Inspect the raw OpenAPI 3.1 specification at [`/api/openapi.json`](http://localhost:8080/api/openapi.json).
-
-### 9. Automated Verification & Documentation Matrix
+### Automated Verification & Documentation Matrix
 - **Adversarial Regression Suite:** Run `python tests/test_phase3_adversarial.py` (47/47 PASS) verifying T2/T3 boundaries.
 - **T2 Audit Suite:** Run `npx tsx tests/test_t2_exhaustive_audit.ts` (17/17 PASS) verifying MAD mathematics and peer isolation.
 - **T4 Cryptographic Suite:** Run `npx tsx tests/test_t4_certificates.ts` (16/16 PASS) verifying HMAC signatures and anti-tampering.
@@ -216,10 +240,10 @@ $$\text{MAD} = \text{median}\left(|x_i - \text{median}(X)|\right)$$
 $$\text{Modified Z} = \frac{0.6745 \cdot (x_i - \text{median}(X))}{\text{MAD}}$$
 
 ### Zero-Variance & Adversarial Fixture Protections
-In fixture dataset `fixtures.json`, judge `jdg_30` (Rafa Okonkwo) gave identical `3.0` scores, `jdg_07` (Iva Petrova) gave identical `4.0` scores, and single-review panels (`jdg_01`, `jdg_23`) evaluate $N=1$ submissions—all mathematically yielding $\text{MAD} = 0$. Standard normalization algorithms crash with division-by-zero or emit `NaN`. 
+In fixture dataset `fixtures.json`, judge `jdg_30` (Rafa Okonkwo) gave identical composite scores (`4.0` across all 4 evaluated projects), and single-review panels (`jdg_01`, `jdg_23`) evaluate $N=1$ submissions—all mathematically yielding $\text{MAD} = 0$. Standard normalization algorithms crash with division-by-zero or emit `NaN`. Furthermore, weighted rubric sums can drift by 1 ULP ($\approx 2.22 \times 10^{-16}$) on mathematically equal composites, which naive exact-equality guards fail on.
 
 Our implementation (`src/lib/normalization.ts`):
-- Explicitly tests for $\text{MAD} == 0$ (or $< 10^{-9}$), safely defaulting the modified Z-score to `0.0`.
+- Explicitly tests for $\text{MAD} < 10^{-9}$ (`EPSILON`), safely defaulting the modified Z-score to `0.0` and preventing $10^{15}$ division artifacts.
 - Validates every mapped score via `Number.isFinite` to prevent non-finite float leakage.
 - Enforces an **Evaluation Status Invariant**: reviewed projects (`reviewCount > 0`) strictly outrank unreviewed projects.
 - Applies an $\epsilon = 10^{-9}$ floating-point tolerance on normalized score comparisons to eliminate IEEE 754 precision flutter.
@@ -234,9 +258,18 @@ Our implementation (`src/lib/normalization.ts`):
    - *Trade-off:* High write volume is serialized by SQLite write locks (`WAL` mode recommended in high-concurrency production).
    - *Production path:* Fully abstracted via Prisma ORM. Switching to PostgreSQL requires changing one line in `prisma/schema.prisma` (`provider = "postgresql"`). See [ARCHITECTURE.md](ARCHITECTURE.md) for details.
 
-2. **Deterministic Seed Tokens:**
-   - *Why chosen:* Mandated by the automated acceptance test suite (`Hack_docs/run.py` and `.dogfood.toml`).
-   - *Production path:* Replace static seed session IDs with cryptographically random UUIDv4 or encrypted JWT tokens upon email magic link authentication.
+2. **In-Memory Rate Limiting vs. Distributed Cache (Redis):**
+   - *Why chosen:* Keeps the stack minimal with zero external dependencies, strictly matching the `--network none` mandate of the evaluation environment.
+   - *Trade-off:* Rate limits (e.g. for `POST /api/community/comments`) are maintained in the local application memory. In a multi-node production deployment behind a load balancer, rate limits are not shared across instances.
+   - *Production path:* Swap the local in-memory sliding window with a Redis-backed rate limiter (like `@upstash/ratelimit`) before horizontally scaling to multiple Node.js instances.
+
+3. **Deterministic Seed Tokens vs Interactive Auth:**
+   - *Why chosen:* Mandated by the automated acceptance test suite (`Hack_docs/run.py` and `.dogfood.toml`). Seed tokens are preserved in the DB for direct test runner header authentication.
+   - *Adversarial Hardening:* To prevent session hijacking via email lookup, `POST /api/auth/login` always generates fresh `crypto.randomUUID()` tokens (never returning seeded tokens), and `POST /api/auth/logout` explicitly deletes the session record from the database.
+
+4. **Floating-Point ULP Precision in Weighted Composites:**
+   - *Finding:* With non-uniform rubric weights (e.g. 0.7/0.2/0.1), identical composite scores drift by 1 ULP ($\approx 2.22 \times 10^{-16}$). A strict `mad === 0` check causes $z$-score inflation to $\approx 3 \times 10^{15}$.
+   - *Solution:* Guarded with `EPSILON = 1e-9` threshold and scale floor defense in `src/lib/normalization.ts`.
 
 ---
 

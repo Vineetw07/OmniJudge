@@ -47,6 +47,12 @@ Authenticates a user via email, retrieves or creates a durable session, and sets
 }
 ```
 * **Validation:** Email must be valid RFC 5322 format.
+* **cURL Example:**
+```bash
+curl -X POST http://localhost:8080/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"organizer@dogfood.dev"}'
+```
 * **Response (`200 OK`):**
 ```json
 {
@@ -59,23 +65,31 @@ Authenticates a user via email, retrieves or creates a durable session, and sets
   }
 }
 ```
-* **Set-Cookie Header:** `session=org_seed_token_2026; Path=/; HttpOnly; SameSite=Lax; Max-Age=2592000`
+* **Set-Cookie Header:** `session=<fresh_random_uuid>; Path=/; HttpOnly; SameSite=Lax; Max-Age=2592000`
 * **Errors:**
   * `400 Bad Request`: `{ "error": "Valid email address is required" }`
-  * `401 Unauthorized`: `{ "error": "User with this email not found" }`
+  * `401 Unauthorized`: `{ "error": "Invalid credentials" }`
 
 ---
 
 ### 2.2 `POST /api/auth/logout` & `GET /api/auth/logout`
-Terminates the active session by expiring the `session` cookie.
+Terminates the active session by deleting the session row from the database and expiring the `session` cookie.
 
 * **Access:** Public / Authenticated
 * **Behavior:**
-  * `POST`: Sets `session` cookie max-age to 0 and returns JSON:
+  * `POST`: Deletes session from SQLite DB, sets `session` cookie max-age to 0 and returns JSON:
     ```json
     { "success": true, "message": "Logged out successfully" }
     ```
-  * `GET`: Clears `session` cookie and issues a `302/307 Redirect` to `/login`.
+    * **cURL Example:**
+    ```bash
+    curl -X POST http://localhost:8080/api/auth/logout
+    ```
+  * `GET`: Deletes session from DB, clears `session` cookie and issues a `302 Redirect` to `/login`.
+    * **cURL Example:**
+    ```bash
+    curl -X GET http://localhost:8080/api/auth/logout
+    ```
 
 ---
 
@@ -86,6 +100,10 @@ Retrieves hackathon project submissions with track and team relations.
 
 * **Access:** Public (No authentication required)
 * **Query Parameters:** None (returns up to 40 submissions ordered by `id ASC`)
+* **cURL Example:**
+```bash
+curl -X GET http://localhost:8080/api/projects
+```
 * **Response (`200 OK`):**
 ```json
 {
@@ -125,6 +143,13 @@ Handles new project submissions. Strictly enforces the event deadline.
   "isDraft": false
 }
 ```
+* **cURL Example:**
+```bash
+curl -X POST http://localhost:8080/api/projects \
+  -H "Cookie: session=org_seed_token_2026" \
+  -H "Content-Type: application/json" \
+  -d '{"title":"Autonomous Cache","summary":"Self-healing distributed in-memory key-value engine.","repoUrl":"https://github.com/example/cache","trackId":"trk_01","teamId":"tm_02","isDraft":false}'
+```
 * **Deadline Enforcement Invariant:**
   * Compares current server timestamp with database `Event.submissionsClose`.
   * If `now > submissionsClose`, immediately returns **`409 Conflict`**:
@@ -156,6 +181,11 @@ Fetches rubric score evaluations with strict perimeter role isolation.
   * `403 Forbidden`: Called by `participant` or `visitor`.
   * `403 Forbidden` **(IDOR Defense):** When called by a `judge`, if `?judge=<target_id>` does not match `session.userId`, the request is rejected immediately without hitting the database.
   * `200 OK`: When a judge queries their own scores, or when an organizer/admin queries any judge.
+* **cURL Example:**
+```bash
+curl -X GET "http://localhost:8080/api/judge/scores?judge=usr_jdg_a_01" \
+  -H "Cookie: session=jdg_a_seed_token_2026"
+```
 * **Response (`200 OK`):**
 ```json
 {
@@ -212,6 +242,13 @@ Submits or updates multi-criterion rubric evaluations for an assigned project wi
 * **Atomic Transaction Execution:**
   * Upserts every `Score` record.
   * Appends `action: "score_submitted"` to `AuditLog` containing project ID, track ID, and serialized score payload.
+* **cURL Example:**
+```bash
+curl -X POST http://localhost:8080/api/judge/scores \
+  -H "Cookie: session=jdg_a_seed_token_2026" \
+  -H "Content-Type: application/json" \
+  -d '{"projectId":"prj_01","scores":[{"criterionId":"crit_func","value":4.5}],"comment":"Good"}'
+```
 * **Response (`200 OK`):**
 ```json
 {
@@ -241,6 +278,11 @@ Queries vote state with a strict **Sealed Results Invariant** to eliminate bandw
       "resultsPublic": false
     }
     ```
+* **cURL Example:**
+```bash
+curl -X GET "http://localhost:8080/api/community/vote?projectId=prj_01" \
+  -H "Cookie: session=prt_seed_token_2026"
+```
 * **Sealed Results Invariant:**
   * While `Event.resultsPublic === false`, `totalVotes` is returned as **`null`** for all non-organizer callers. Vote counts are never leaked over the wire during active voting.
 * **Errors:**
@@ -266,6 +308,13 @@ Toggles an upvote on a project submission (vote if unvoted, retract if already v
 * **Atomic Side Effects:**
   * If already voted: Deletes `CommunityVote` and logs `COMMUNITY_VOTE_RETRACTED` to `AuditLog`.
   * If not voted: Inserts `CommunityVote` and logs `COMMUNITY_VOTE_CAST` to `AuditLog`.
+* **cURL Example:**
+```bash
+curl -X POST http://localhost:8080/api/community/vote \
+  -H "Cookie: session=prt_seed_token_2026" \
+  -H "Content-Type: application/json" \
+  -d '{"projectId":"prj_02"}'
+```
 * **Response (`200 OK`):**
 ```json
 {
@@ -283,6 +332,10 @@ Retrieves public feedback comments for a project submission.
 * **Access:** Public
 * **Query Parameters:**
   * `projectId` *(required, string)*
+* **cURL Example:**
+```bash
+curl -X GET "http://localhost:8080/api/community/comments?projectId=prj_02"
+```
 * **Response (`200 OK`):**
 ```json
 {
@@ -319,6 +372,13 @@ Posts qualitative, constructive feedback on a project.
   * **Length Clamp (`400 Bad Request`):** Sanitized length must satisfy `1 <= length <= 500`.
   * **Sliding-Window Rate Limit (`429 Too Many Requests`):** Database check enforces a minimum 10-second interval between comments per user.
 * **Side Effects:** Inserts `Comment` and records `COMMENT_POSTED` in `AuditLog`.
+* **cURL Example:**
+```bash
+curl -X POST http://localhost:8080/api/community/comments \
+  -H "Cookie: session=prt_seed_token_2026" \
+  -H "Content-Type: application/json" \
+  -d '{"projectId":"prj_02","content":"Great documentation and clean API contracts."}'
+```
 * **Response (`200 OK`):**
 ```json
 {
@@ -341,6 +401,10 @@ Posts qualitative, constructive feedback on a project.
 Reads current event voting lifecycle parameters.
 
 * **Access:** Public / Authenticated
+* **cURL Example:**
+```bash
+curl -X GET http://localhost:8080/api/community/settings
+```
 * **Response (`200 OK`):**
 ```json
 {
@@ -364,6 +428,13 @@ Updates event voting flags (seal/unseal results, open/close voting window).
 }
 ```
 * **Side Effects:** Updates `Event` and appends `COMMUNITY_SETTINGS_UPDATED` to `AuditLog`.
+* **cURL Example:**
+```bash
+curl -X POST http://localhost:8080/api/community/settings \
+  -H "Cookie: session=org_seed_token_2026" \
+  -H "Content-Type: application/json" \
+  -d '{"votingOpen":true,"resultsPublic":true}'
+```
 * **Response (`200 OK`):**
 ```json
 {
@@ -381,6 +452,11 @@ Updates event voting flags (seal/unseal results, open/close voting window).
 Computes rubric-weighted composite scores, applies per-judge MAD normalization, and streams an RFC 4180 compliant CSV.
 
 * **Access:** Organizer, Admin only (`403 Forbidden` for participants/judges, `401 Unauthorized` for anonymous)
+* **cURL Example:**
+```bash
+curl -X GET http://localhost:8080/api/export.csv \
+  -H "Cookie: session=org_seed_token_2026"
+```
 * **Response Headers:**
 ```http
 HTTP/1.1 200 OK
@@ -393,26 +469,82 @@ Cache-Control: no-store, max-age=0
      $$\text{Composite} = \frac{\sum (\text{score}_c \cdot \text{weight}_c)}{\sum \text{weight}_c}$$
   2. Applies Modified Z-Score per judge using Median Absolute Deviation:
      $$\text{modified\_z}_i = \frac{0.6745 \cdot (x_i - \tilde{x})}{\text{MAD}}$$
-  3. **Zero-Variance & Finite Guard:** If $\text{MAD} = 0$ (e.g. `jdg_30`, `jdg_07`, or single-review judges), outputs `0.0` instead of crashing with `NaN`. All scores pass `Number.isFinite` validation.
+  3. **Zero-Variance & Finite Guard:** If $\text{MAD} < 10^{-9}$ (e.g. `jdg_30`, single-review judges, or 1-ULP floating-point drift), outputs `0.0` instead of crashing with `NaN` or blowing up with $10^{15}$ division artifacts. All scores pass `Number.isFinite` validation.
   4. Averages normalized scores across valid normalized values (`/ normScores.length`) and raw scores across all reviews (`/ reviewCount`).
   5. **Deterministic Multi-Key Sort:**
      - **Status Invariant:** Evaluated projects (`reviewCount > 0`) strictly outrank unreviewed projects (`reviewCount === 0`).
      - **Normalized Score DESC:** Floating-point comparison with epsilon tolerance ($\epsilon = 10^{-9}$).
      - **Raw Score DESC:** Tie-breaker with epsilon tolerance ($\epsilon = 10^{-9}$).
      - **Project ID ASC:** Deterministic lexicographical tie-break.
-  6. Emits RFC 4180 and CWE-1236 sanitized CSV (neutralizing `=+\-@\t\r` formula triggers) with comma-verified header row.
+  6. Emits UTF-8 BOM (`\uFEFF`), RFC 4180, and CWE-1236 sanitized CSV (neutralizing `=+\-@\t\r` formula triggers) with comma-verified header row, and logs action `csv_exported` to `AuditLog`.
 * **Output Format:**
 ```csv
-project_id,project_title,track,raw_score,normalized_score,rank
-prj_01,"Glass Signal","Developer Tools",4.25,1.1420,1
-prj_04,"Deep Compass","Developer Tools",3.80,0.4852,2
+project_id,project_title,track,raw_score,normalized_score,review_count,rank
+prj_01,"Glass Signal","Developer Tools",4.25,1.1420,3,1
+prj_04,"Deep Compass","Developer Tools",3.80,0.4852,2,2
 ```
 
 ---
 
-## 8. Tier 4 Stretch Surface & Developer Platform APIs
+## 8. Leaderboard API
 
-### 8.1 Signed Judge Certificates API
+### 8.1 `GET /api/leaderboard`
+Returns the MAD-normalized public leaderboard, sanitized of per-judge scores and all PII. Enforces the **Sealed-Results Invariant**: while `Event.resultsPublic === false`, this endpoint is locked to organizer/admin callers only.
+
+* **Access:** Any authenticated session (`401 Unauthorized` for anonymous). `403 Forbidden` for non-organizer roles while `Event.resultsPublic === false`.
+* **Query Parameters:** None.
+* **Access Rules:**
+  * `401 Unauthorized`: No valid `session` cookie present.
+  * `403 Forbidden` **(Sealed-Results Invariant):** `Event.resultsPublic === false` AND caller role is **not** `organizer` or `admin`. Results are sealed until the organizer explicitly unlocks them via `POST /api/community/settings`.
+  * `200 OK`: `Event.resultsPublic === true`, OR caller is `organizer`/`admin` (they bypass the sealed-results gate to verify rankings before public release).
+* **Sealed-Results Invariant Explanation:** When the organizer has not yet made results public (`resultsPublic = false`), exposing the leaderboard to judges or participants would create bandwagon bias and ranking manipulation incentives before all reviews are complete. Organizers can inspect live rankings at any time without triggering the gate.
+* **cURL Example (Organizer bypasses sealed gate):**
+```bash
+curl -s -H "Cookie: session=org_seed_token_2026" \
+  "http://localhost:8080/api/leaderboard"
+```
+* **Response (`200 OK`):**
+```json
+{
+  "resultsPublic": false,
+  "leaderboard": [
+    {
+      "rank": 1,
+      "projectId": "prj_01",
+      "title": "Glass Signal",
+      "trackName": "Developer Tools & Infrastructure",
+      "normalizedScore": 1.1420,
+      "reviewCount": 3
+    },
+    {
+      "rank": 2,
+      "projectId": "prj_04",
+      "title": "Deep Compass",
+      "trackName": "Developer Tools & Infrastructure",
+      "normalizedScore": 0.4852,
+      "reviewCount": 2
+    },
+    {
+      "rank": 3,
+      "projectId": "prj_12",
+      "title": "Small Meadow",
+      "trackName": "AI & Machine Learning",
+      "normalizedScore": 0.0000,
+      "reviewCount": 1
+    }
+  ]
+}
+```
+* **Sanitized Output Contract:** The response intentionally omits per-judge `Score` rows, `judgeId` fields, and all personal identifiers. Only the following fields are returned per entry: `rank`, `projectId`, `title`, `trackName`, `normalizedScore` (4 decimal places), `reviewCount`.
+* **Errors:**
+  * `401 Unauthorized`: `{ "error": "Unauthorized: Valid session required" }`
+  * `403 Forbidden`: `{ "error": "Results are not yet public" }`
+
+---
+
+## 9. Tier 4 Stretch Surface & Developer Platform APIs
+
+### 9.1 Signed Judge Certificates API
 
 #### `GET /api/judge/certificate`
 Generates a canonical, HMAC-SHA256 signed evaluation credential for the authenticated judge.
@@ -420,6 +552,11 @@ Generates a canonical, HMAC-SHA256 signed evaluation credential for the authenti
 * **Access:** Judge role only (`401 Unauthorized` for anonymous, `403 Forbidden` for participants).
 * **Query Parameters:**
   * `judge` (optional): Must match authenticated user ID (prevent IDOR).
+* **cURL Example:**
+```bash
+curl -X GET http://localhost:8080/api/judge/certificate \
+  -H "Cookie: session=jdg_a_seed_token_2026"
+```
 * **Response (`200 OK`):**
 ```json
 {
@@ -451,6 +588,12 @@ Cryptographically verifies an evaluation certificate token.
   "token": "eyJ2ZXJzaW9uIjoiMS4w..."
 }
 ```
+* **cURL Example:**
+```bash
+curl -X POST http://localhost:8080/api/judge/certificate \
+  -H "Content-Type: application/json" \
+  -d '{"token":"eyJ2ZXJzaW9uIjoiMS4w..."}'
+```
 * **Response (`200 OK`):**
 ```json
 {
@@ -478,12 +621,17 @@ Cryptographically verifies an evaluation certificate token.
 
 ---
 
-### 8.2 Real-Time Webhooks Engine
+### 9.2 Real-Time Webhooks Engine
 
 #### `GET /api/webhooks`
 Lists all active webhook subscriptions with masked secrets.
 
 * **Access:** Organizer, Admin only (`403 Forbidden` for others)
+* **cURL Example:**
+```bash
+curl -X GET http://localhost:8080/api/webhooks \
+  -H "Cookie: session=org_seed_token_2026"
+```
 * **Response (`200 OK`):**
 ```json
 {
@@ -520,6 +668,13 @@ Creates a new webhook subscription or sends a test ping.
   "subscriptionId": "wh_01"
 }
 ```
+* **cURL Example:**
+```bash
+curl -X POST http://localhost:8080/api/webhooks \
+  -H "Cookie: session=org_seed_token_2026" \
+  -H "Content-Type: application/json" \
+  -d '{"url":"https://external.service/webhook","secret":"super_secret_webhook_key_32bytes","events":["score.submitted"]}'
+```
 * **Payload Dispatched to Target:**
   * Headers: `Content-Type: application/json`, `X-OmniJudge-Signature-256: <hmac_hex>`, `X-OmniJudge-Event: <event_name>`
   * Delivery: Non-blocking asynchronous dispatch with 4,000ms timeout.
@@ -529,15 +684,25 @@ Deletes an active webhook subscription.
 
 * **Access:** Organizer, Admin only
 * **Query Parameters:** `id=<subscription_id>`
+* **cURL Example:**
+```bash
+curl -X DELETE "http://localhost:8080/api/webhooks?id=wh_01" \
+  -H "Cookie: session=org_seed_token_2026"
+```
 
 ---
 
-### 8.3 Full State JSON Export
+### 9.3 Full State JSON Export
 
 #### `GET /api/export.json`
 Exports complete event state including projects, teams, tracks, criteria, and calculated MAD-normalized standings.
 
 * **Access:** Organizer, Admin only (`403 Forbidden` for others)
+* **cURL Example:**
+```bash
+curl -X GET http://localhost:8080/api/export.json \
+  -H "Cookie: session=org_seed_token_2026"
+```
 * **Response Headers:** `Content-Type: application/json; charset=utf-8`, `Content-Disposition: attachment; filename="omnijudge_export.json"`
 * **Response Body (`200 OK`):**
 ```json
@@ -565,7 +730,7 @@ Exports complete event state including projects, teams, tracks, criteria, and ca
 
 ---
 
-### 8.4 Bulk Data Import
+### 9.4 Bulk Data Import
 
 #### `POST /api/import`
 Transactionally imports or updates tracks, teams, and projects.
@@ -585,6 +750,13 @@ Transactionally imports or updates tracks, teams, and projects.
   ]
 }
 ```
+* **cURL Example:**
+```bash
+curl -X POST http://localhost:8080/api/import \
+  -H "Cookie: session=org_seed_token_2026" \
+  -H "Content-Type: application/json" \
+  -d '{"tracks":[],"teams":[],"projects":[]}'
+```
 * **Response (`200 OK`):**
 ```json
 {
@@ -599,11 +771,15 @@ Transactionally imports or updates tracks, teams, and projects.
 
 ---
 
-### 8.5 OpenAPI 3.1 Specification
+### 9.5 OpenAPI 3.1 Specification
 
 #### `GET /api/openapi.json`
 Retrieves machine-readable OpenAPI 3.1.0 schema for the entire platform.
 
 * **Access:** Public (No authentication required)
+* **cURL Example:**
+```bash
+curl -X GET http://localhost:8080/api/openapi.json
+```
 * **Response (`200 OK`):** Valid OpenAPI 3.1.0 JSON covering 12 endpoints, security schemes (`sessionAuth`), component schemas, and parameters.
 

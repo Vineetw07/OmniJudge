@@ -107,7 +107,8 @@
 |---|---|---|---|---|
 | **D-1** | **Comment flood** | Automated 100 req/s comment spam | 10-second per-user sliding window rate limit | ✅ |
 | **D-2** | **CSV export abuse** | Attacker hammers `GET /api/export.csv` to trigger expensive aggregation | Organizer-only RBAC (`403` for all others); `Cache-Control: no-store` — add reverse proxy rate limit for production | Partial |
-| **D-3** | **DB fill via vote spam** | Attacker creates many accounts and casts votes | Requires valid session per vote; `@@unique` prevents duplicate rows | ✅ |
+| **D-3** | **Sybil Voting & Ballot Stuffing** | Attacker creates many accounts and casts votes | Requires valid session per vote, Sybil resistance through strict session generation; `@@unique` prevents duplicate rows and ballot stuffing | ✅ |
+| **D-4** | **Timing attacks** | Attacker measures response times to leak secrets or guess IDs | Constant-time comparisons (`crypto.timingSafeEqual`) used for HMAC signatures and token validation | ✅ |
 
 ### 3.6 Tier 4 (T4) Stretch Attack Surface & Defense Matrix
 

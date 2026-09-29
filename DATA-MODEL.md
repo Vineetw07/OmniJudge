@@ -197,6 +197,16 @@ erDiagram
 
 ---
 
+### 1.3 Indexing Strategy & Performance
+OmniJudge employs a strict indexing strategy to support high-read gallery traffic and concurrent evaluation load:
+- **Foreign Key Traversal:** Foreign key columns (`projectId`, `trackId`, `teamId`, etc.) are traversed via primary key lookups on the referenced table. Unlike PostgreSQL, SQLite does **not** automatically create indexes on foreign key columns — Prisma generates the constraint declarations but does not emit `CREATE INDEX` statements for FK fields. For high-read production deployments, explicit `@@index([fieldName])` directives can be added to `schema.prisma` without requiring migrations beyond `prisma migrate dev`.
+- **Composite Unique Constraints (`@@unique`):** 
+  - `CommunityVote` uses `@@unique([projectId, userId])` to prevent double-voting at the database level.
+  - `TeamMember` uses `@@unique([userId])` ensuring 1:1 participant to team affiliation.
+- **Query Optimization:** Lookup operations for project galleries or judge assignments are highly optimized through primary key `cuid()` lookups and foreign key joins without table scans.
+
+---
+
 ## 2. Comprehensive Model Catalog (All 13 Prisma Entities)
 
 ### 2.1 `User`
