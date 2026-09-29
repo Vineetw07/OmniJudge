@@ -5,9 +5,21 @@
 
 ---
 
+## 📹 5-Minute Demo Video
+
+- **Video Walkthrough:** [DOGFOOD 2026 - OmniJudge 5-Minute Lifecycle Walkthrough](https://youtu.be/placeholder-dogfood-omnijudge) *(Placeholder: Replace with actual submission video link)*
+- **Lifecycle Covered:** 
+  1. **Gallery & Discovery (T1):** Public project exploration, search, track filtering, and embeddable widgets.
+  2. **Role Isolation & Judging (T2):** Parameter-level RBAC, conflict-of-interest prevention, and private score submission.
+  3. **Mathematical Normalization (T2):** Live MAD normalization defense against zero-variance judges (`jdg_07`) and single-judge panels.
+  4. **Community Engagement (T3):** Fisher-Yates randomized ballots, sealed voting invariants, and collusion defenses.
+  5. **Stretch Surface (T4):** HMAC-SHA256 verifiable certificates (`/verify`), webhook dispatches, and OpenAPI explorer (`/api-docs`).
+
+---
+
 ## 🏆 What Makes OmniJudge Different
 
-1. **Mathematical Defensibility (MAD):** We don't just average scores. We implemented Modified Z-Score Normalization via Median Absolute Deviation (MAD), proving its 0.6745 derivation and defending against zero-variance judge edge-cases (`jdg_30`, single-review panels) and IEEE-754 precision drift that crash naive systems.
+1. **Mathematical Defensibility (MAD):** We don't just average scores. We implemented Modified Z-Score Normalization via Median Absolute Deviation (MAD), proving its 0.6745 derivation and defending against zero-variance judge edge-cases (`jdg_07`, single-review panels) and IEEE-754 precision drift that crash naive systems.
 2. **Zero-Trust Security Perimeter:** Role isolation isn't just UI conditional rendering. Every route handler enforces parameter-level perimeter checks, stopping peer-snooping (IDOR) and collusive self-voting (`TeamMember` relational checks) before database queries ever execute.
 3. **Tier 4 Stretch Surface Completed:** Beyond T1/T2, OmniJudge delivers cryptographically signed HMAC-SHA256 judge certificates, non-blocking asynchronous webhooks, an embeddable iframe gallery, bulk import/export, and a full OpenAPI 3.1.0 interactive explorer.
 4. **Offline Operational Supremacy:** Built on Prisma with embedded SQLite. `docker compose up` in an air-gapped (`--network none`) environment works perfectly. No external database, no cloud APIs, zero downtime.
@@ -17,10 +29,10 @@
 ## ⚡ Judge Evaluation Scorecard & Quick Index
 
 | Official DOGFOOD Evaluation Criterion | Weight | OmniJudge Implementation & Proof Locations | Verified Status |
-| :--- | :---: | :--- | :---: |
+| :--- | :--- :--- | :---: |
 | **Tier Completion & Correctness** | **40%** | • **T1 + T2 (Automated):** `python Hack_docs/run.py .dogfood.toml` (7/7 PASS)<br>• **T3 (Public / Community):** Ballots randomized per session (Fisher-Yates), sealed results invariant (`totalVotes: null`), self-vote relational defense (`403`), 10s comment rate limits, stored XSS sanitization.<br>• **T4 (Stretch Surface):** Embeddable iframe gallery (`/embed/projects`), HMAC-SHA256 verifiable judge records (`/verify`), real-time webhook engine (`/api/webhooks`), bulk JSON import/export (`/api/export.json`, `/api/import`), and OpenAPI 3.1 explorer (`/api-docs`). | **7 / 7 PASS**<br>*(T3 & T4 manual walkthroughs below)* |
-| **Judging Integrity** | **25%** | • **Backend Role Isolation:** Peer score snooping rejected at HTTP boundary (`403 Forbidden`).<br>• **Conflict of Interest (COI):** Relational traversal (`TeamMember.teamId === project.teamId`) prevents judges from scoring own projects (`403`).<br>• **Score Normalization:** Modified Z-Score via Median Absolute Deviation (MAD) with zero-variance defense (`jdg_30`, single-review panels, 1-ULP drift) and CWE-1236 CSV injection protection.<br>• **Audit Trail:** Append-only immutable `AuditLog` table on all scoring/voting writes. | **100% Verified**<br>*(See [JUDGING.md](./JUDGING.md) & [THREAT-MODEL.md](./THREAT-MODEL.md))* |
-| **Adoptability & Operability** | **20%** | • **One Command Rule:** `docker compose up` brings up seeded portal in `--network none` (zero cloud/network calls).<br>• **Deterministic Seeding:** Loads official `Hack_docs/fixtures.json` (40 projects, 30 judges, 8 tracks).<br>• **Zero External DB:** Embedded SQLite via Prisma with clean 4-step migration path to PostgreSQL in `ARCHITECTURE.md`.<br>• **License:** Standard MIT open-source license. | **100% Offline-Ready**<br>*(See [ARCHITECTURE.md](./ARCHITECTURE.md))* |
+| **Judging Integrity** | **25%** | • **Backend Role Isolation:** Peer score snooping rejected at HTTP boundary (`403 Forbidden`).<br>• **Conflict of Interest (COI):** Relational traversal (`TeamMember.teamId === project.teamId`) prevents judges from scoring own projects (`403`).<br>• **Score Normalization:** Modified Z-Score via Median Absolute Deviation (MAD) with zero-variance defense (`jdg_07`, single-review panels, 1-ULP drift) and CWE-1236 CSV injection protection.<br>• **Audit Trail:** Append-only immutable `AuditLog` table on all scoring/voting writes. | **100% Verified**<br>*(See [JUDGING.md](./JUDGING.md) & [THREAT-MODEL.md](./THREAT-MODEL.md))* |
+| **Adoptability & Operability** | **20%** | • **One Command Rule:** `docker compose up` brings up seeded portal in `--network none` (zero cloud/network calls).<br>• **Deterministic Seeding:** Loads official `Hack_docs/fixtures.json` (41 projects, 30 judges, 8 tracks).<br>• **Zero External DB:** Embedded SQLite via Prisma with clean 4-step migration path to PostgreSQL in `ARCHITECTURE.md`.<br>• **License:** Standard MIT open-source license. | **100% Offline-Ready**<br>*(See [ARCHITECTURE.md](./ARCHITECTURE.md))* |
 | **Code Quality & Innovation** | **15%** | • Next.js 14 App Router with React Server Components (RSC) and Route Handlers.<br>• Schema boundaries with Zod parsing and Prisma transactions (`prisma.$transaction`).<br>• Cryptographically signed evaluation certificates (HMAC-SHA256).<br>• Dark-mode responsive UI with Tailwind CSS, shadcn/ui, and Framer Motion. | **Production Grade**<br>*(See [API.md](./API.md) & `/api-docs`)* |
 | **Bonus Challenges** | **Tie-Break** | • **Normalization Proof:** Fully derived in [JUDGING.md](./JUDGING.md).<br>• **Threat Model:** Exhaustive attack-surface taxonomy in [THREAT-MODEL.md](./THREAT-MODEL.md).<br>• **API First:** Complete OpenAPI 3.1.0 spec at `/api/openapi.json` and interactive UI at `/api-docs`. | **3 / 4 Bonuses Shipped** |
 

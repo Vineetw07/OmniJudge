@@ -14,7 +14,6 @@ export const metadata: Metadata = {
 export default async function ProjectsPage() {
   const [projects, session, event, tracks] = await Promise.all([
     prisma.project.findMany({
-      take: 40,
       orderBy: { id: 'asc' },
       include: {
         team: true,

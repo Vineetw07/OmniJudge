@@ -47,7 +47,7 @@ Choosing a normalization algorithm is an engineering trade-off. We deliberately 
 | :--- | :--- | :--- | :--- |
 | **Raw Arithmetic Mean** | $\bar{x} = \frac{1}{K}\sum x_k$ | Vulnerable to "hawks vs. doves" calibration skew. Submissions assigned strict judges are unfairly penalized. | ❌ Rejected (Fails Integrity) |
 | **Min-Max Scaling** | $\frac{x_i - \min}{\max - \min}$ | Extreme outlier scores collapse the scale for all intermediate projects; breaks down if $\min = \max$. | ❌ Rejected (Fragile) |
-| **Classical Z-Score** | $z_i = \frac{x_i - \bar{x}}{s}$ | Sample standard deviation $s$ has a 0% breakdown point. **Crashes with `NaN`** when variance is zero ($s = 0$). | ❌ Rejected (Crashes on `jdg_30`) |
+| **Classical Z-Score** | $z_i = \frac{x_i - \bar{x}}{s}$ | Sample standard deviation $s$ has a 0% breakdown point. **Crashes with `NaN`** when variance is zero ($s = 0$). | ❌ Rejected (Crashes on `jdg_07`) |
 | **Borda Count / Elo** | Pairwise ranking | Requires all-pairs or dense bipartite connectivity; fails on sparse, disjoint incomplete block designs. | ❌ Rejected (Unsuitable for IBD) |
 | **Modified Z-Score (MAD)** | $0.6745 \cdot \frac{x_i - \tilde{x}}{\text{MAD}}$ | **50% breakdown point robustness**. Accommodates outliers, scales identical to Gaussian, handles zero-variance gracefully. | ✅ **Selected & Defended** |
 

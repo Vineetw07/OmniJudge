@@ -2,7 +2,7 @@
  * Cross-judge score normalisation using Modified Z-Score (MAD method).
  *
  * WHY NOT STANDARD Z-SCORE:
- * The fixtures.json deliberately includes a zero-variance judge (jdg_30, Rafa Okonkwo)
+ * The fixtures.json deliberately includes a zero-variance judge (jdg_07, Iva Petrova)
  * who gave every single project the exact same composite score (12.0), as well as
  * single-review panels (jdg_01, jdg_23). Standard z-score divides by sample standard deviation,
  * which equals 0 for these judges → divide-by-zero → NaN crash.

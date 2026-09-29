@@ -17,11 +17,10 @@ const SubmissionSchema = z.object({
 
 /**
  * GET /api/projects
- * Public API to list projects (max 40)
+ * Public API to list projects
  */
 export async function GET() {
   const projects = await prisma.project.findMany({
-    take: 40,
     orderBy: { id: 'asc' },
     include: {
       track: true,

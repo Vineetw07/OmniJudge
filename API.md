@@ -183,7 +183,7 @@ Fetches rubric score evaluations with strict perimeter role isolation.
   * `200 OK`: When a judge queries their own scores, or when an organizer/admin queries any judge.
 * **cURL Example:**
 ```bash
-curl -X GET "http://localhost:8080/api/judge/scores?judge=usr_jdg_a_01" \
+curl -X GET "http://localhost:8080/api/judge/scores?judge=user_jdg_a_01" \
   -H "Cookie: session=jdg_a_seed_token_2026"
 ```
 * **Response (`200 OK`):**
