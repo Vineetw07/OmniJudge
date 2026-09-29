@@ -45,6 +45,17 @@ export interface NavbarProps {
 
 export function Navbar({ currentUser }: NavbarProps) {
   const pathname = usePathname();
+  const [signingOut, setSigningOut] = React.useState(false);
+
+  const handleSignOut = async () => {
+    setSigningOut(true);
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+    } catch {
+      // ignore network errors and still redirect
+    }
+    window.location.href = '/login';
+  };
 
   if (pathname?.startsWith('/embed')) {
     return null;
@@ -116,15 +127,15 @@ export function Navbar({ currentUser }: NavbarProps) {
               >
                 ● {currentUser.role}
               </span>
-              <a href="/api/auth/logout">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="text-xs h-8 px-2.5 border-white/10 bg-white/5 text-slate-300 hover:bg-red-500/10 hover:text-red-300 hover:border-red-500/30 transition-all"
-                >
-                  Sign Out
-                </Button>
-              </a>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleSignOut}
+                disabled={signingOut}
+                className="text-xs h-8 px-2.5 border-white/10 bg-white/5 text-slate-300 hover:bg-red-500/10 hover:text-red-300 hover:border-red-500/30 transition-all"
+              >
+                {signingOut ? 'Signing out...' : 'Sign Out'}
+              </Button>
             </div>
           ) : (
             <Link href="/login">
