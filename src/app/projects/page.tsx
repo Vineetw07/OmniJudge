@@ -1,6 +1,7 @@
 import { Metadata } from 'next';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from '@/lib/auth';
+import { computeRankedProjects, LeaderboardEntry } from '@/lib/ranking';
 import { ProjectsClient } from './projects-client';
 
 export const dynamic = 'force-dynamic';
@@ -67,6 +68,20 @@ export default async function ProjectsPage() {
     }
   }
 
+  // Compute initial leaderboard if results are public or user is organizer/admin
+  let initialLeaderboard: LeaderboardEntry[] | null = null;
+  if (resultsPublic || isOrganizerOrAdmin) {
+    const ranked = await computeRankedProjects();
+    initialLeaderboard = ranked.map((p) => ({
+      rank: p.rank,
+      projectId: p.projectId,
+      title: p.title,
+      trackName: p.trackName,
+      normalizedScore: Number(p.normalizedScore.toFixed(4)),
+      reviewCount: p.reviewCount,
+    }));
+  }
+
   return (
     <main className="max-w-[1560px] mx-auto px-4 sm:px-6 lg:px-8 py-10 w-full">
       {/* Hero Banner with glowing pill badge */}
@@ -82,7 +97,7 @@ export default async function ProjectsPage() {
         </p>
       </div>
 
-      {/* Client island for search, track filtering, randomized ballot, voting and comments */}
+      {/* Client island for search, track filtering, randomized ballot, voting, comments and judge rankings */}
       <ProjectsClient
         initialProjects={projects}
         initialUserVotedIds={userVotedIds}
@@ -90,6 +105,7 @@ export default async function ProjectsPage() {
         initialResultsPublic={resultsPublic}
         initialVoteCounts={voteCounts}
         initialCommentCounts={commentCounts}
+        initialLeaderboard={initialLeaderboard}
         isOrganizerOrAdmin={isOrganizerOrAdmin}
         currentUserId={session?.id ?? null}
         currentUserRole={session?.role ?? null}
@@ -97,4 +113,3 @@ export default async function ProjectsPage() {
     </main>
   );
 }
-

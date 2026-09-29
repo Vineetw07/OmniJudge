@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo, useEffect, useCallback } from 'react';
+import { motion } from 'framer-motion';
 import { Badge } from '@/components/ui/badge';
 import {
   Search,
@@ -19,10 +20,17 @@ import {
   Code2,
   Copy,
   Check,
+  Trophy,
+  Medal,
+  Award,
+  Lock,
+  LayoutGrid,
+  RefreshCw,
 } from 'lucide-react';
 import Link from 'next/link';
 import type { Prisma } from '@prisma/client';
 import { ProjectCommentsDrawer } from '@/components/ProjectCommentsDrawer';
+import type { LeaderboardEntry } from '@/lib/ranking';
 
 export type ProjectWithRelations = Prisma.ProjectGetPayload<{
   include: { team: true; track: true };
@@ -35,6 +43,7 @@ interface ProjectsClientProps {
   initialResultsPublic?: boolean;
   initialVoteCounts?: Record<string, number> | null;
   initialCommentCounts?: Record<string, number>;
+  initialLeaderboard?: LeaderboardEntry[] | null;
   isOrganizerOrAdmin?: boolean;
   currentUserId?: string | null;
   currentUserRole?: string | null;
@@ -123,10 +132,16 @@ export function ProjectsClient({
   initialResultsPublic = false,
   initialVoteCounts = null,
   initialCommentCounts = {},
+  initialLeaderboard = null,
   isOrganizerOrAdmin = false,
   currentUserId = null,
   currentUserRole = null,
 }: ProjectsClientProps) {
+  const [activeTab, setActiveTab] = useState<'gallery' | 'rankings'>('gallery');
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[] | null>(initialLeaderboard);
+  const [loadingLeaderboard, setLoadingLeaderboard] = useState<boolean>(false);
+  const [leaderboardError, setLeaderboardError] = useState<string | null>(null);
+
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTrack, setSelectedTrack] = useState<FilterTrack>('All');
   const [sortOrder, setSortOrder] = useState<SortOption>('random');
@@ -163,6 +178,26 @@ export function ProjectsClient({
     message: string;
     showLoginLink?: boolean;
   } | null>(null);
+
+  // Fetch leaderboard client-side
+  const fetchLeaderboard = useCallback(async () => {
+    setLoadingLeaderboard(true);
+    setLeaderboardError(null);
+    try {
+      const res = await fetch('/api/leaderboard');
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || `HTTP ${res.status}`);
+      }
+      const data = await res.json();
+      setLeaderboard(data.leaderboard);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to load leaderboard';
+      setLeaderboardError(msg);
+    } finally {
+      setLoadingLeaderboard(false);
+    }
+  }, []);
 
   // Auto-dismiss notification after 4 seconds
   useEffect(() => {
@@ -439,8 +474,76 @@ export function ProjectsClient({
         </div>
       )}
 
-      {/* Controls Container */}
-      <div className="flex flex-col gap-4">
+      {/* View Switcher: Project Gallery vs Official Judge Rankings */}
+      <div className="flex items-center justify-between border-b border-white/[0.08] pb-4 flex-wrap gap-4">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setActiveTab('gallery')}
+            className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all ${
+              activeTab === 'gallery'
+                ? 'bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 shadow-[0_0_15px_rgba(56,189,248,0.2)]'
+                : 'bg-white/[0.03] border border-white/[0.06] text-slate-400 hover:text-slate-200 hover:bg-white/[0.06]'
+            }`}
+          >
+            <LayoutGrid className="size-4" />
+            <span>Project Gallery</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setActiveTab('rankings');
+              if ((resultsPublic || isOrganizerOrAdmin) && !leaderboard && !loadingLeaderboard) {
+                fetchLeaderboard();
+              }
+            }}
+            className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all ${
+              activeTab === 'rankings'
+                ? 'bg-amber-500/20 border border-amber-500/40 text-amber-300 shadow-[0_0_15px_rgba(245,158,11,0.2)]'
+                : 'bg-white/[0.03] border border-white/[0.06] text-slate-400 hover:text-slate-200 hover:bg-white/[0.06]'
+            }`}
+          >
+            <Trophy className="size-4 text-amber-400" />
+            <span>Judge Rankings</span>
+            {resultsPublic ? (
+              <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                Live
+              </span>
+            ) : isOrganizerOrAdmin ? (
+              <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                Preview
+              </span>
+            ) : (
+              <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-white/10 text-slate-400">
+                Sealed
+              </span>
+            )}
+          </button>
+        </div>
+
+        {/* Results Status Badge */}
+        <div className="flex items-center gap-2">
+          {!showTotalVoteCounts ? (
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-white/[0.03] border border-white/[0.08] text-xs text-slate-300 font-medium">
+              <Shield className="size-3.5 text-cyan-400" />
+              <span>🔒 Results sealed until voting window closes</span>
+            </div>
+          ) : (
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-xs text-emerald-300 font-medium">
+              <Sparkles className="size-3.5" />
+              <span>
+                {resultsPublic ? '🔓 Community results public' : '👁️ Organizer Unsealed View'}
+              </span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {activeTab === 'gallery' ? (
+        <>
+          {/* Controls Container */}
+          <div className="flex flex-col gap-4">
         {/* Top Row: Search Input + System Status Banner */}
         <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4">
           <div className="relative max-w-xl w-full">
@@ -739,6 +842,191 @@ export function ProjectsClient({
               </div>
             );
           })}
+        </div>
+      )}
+        </>
+      ) : (
+        /* Judge Rankings View */
+        <div className="space-y-6">
+          {!resultsPublic && !isOrganizerOrAdmin ? (
+            /* Sealed Placeholder for unauthorized / visitor view */
+            <div className="text-center py-20 border border-white/[0.08] rounded-2xl bg-[var(--glass-bg)] backdrop-blur-md px-6 max-w-xl mx-auto my-6">
+              <div className="size-14 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 mx-auto mb-4 shadow-[0_0_20px_rgba(245,158,11,0.2)]">
+                <Lock className="size-7" />
+              </div>
+              <h3 className="text-xl font-bold text-white mb-2">Rankings Currently Sealed</h3>
+              <p className="text-slate-400 text-sm leading-relaxed mb-4">
+                🔒 Rankings sealed until results are published by the organizer
+              </p>
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/[0.03] border border-white/[0.08] text-xs text-slate-400 font-mono">
+                Official MAD-normalized scores will unlock once results are unsealed.
+              </div>
+            </div>
+          ) : (
+            /* Authorized / Unsealed View */
+            <div className="space-y-6">
+              {!resultsPublic && isOrganizerOrAdmin && (
+                <div className="flex items-center justify-between p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-medium">
+                  <div className="flex items-center gap-2">
+                    <Shield className="size-4 shrink-0 text-amber-400" />
+                    <span>🔒 Rankings sealed until results are published by the organizer (Organizer Unsealed View)</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={fetchLeaderboard}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 transition-colors"
+                  >
+                    <RefreshCw className={`size-3 ${loadingLeaderboard ? 'animate-spin' : ''}`} />
+                    <span>Refresh</span>
+                  </button>
+                </div>
+              )}
+
+              {loadingLeaderboard && !leaderboard ? (
+                <div className="text-center py-24 border border-white/[0.08] rounded-2xl bg-[var(--glass-bg)] backdrop-blur-md">
+                  <Sparkles className="size-7 text-amber-400 animate-spin mx-auto mb-3" />
+                  <p className="text-slate-300 font-medium text-sm">Computing MAD-normalized judge ranking...</p>
+                  <p className="text-slate-500 text-xs mt-1">Aggregating cross-judge evaluations</p>
+                </div>
+              ) : leaderboardError && !leaderboard ? (
+                <div className="text-center py-16 border border-red-500/30 rounded-2xl bg-red-950/20 backdrop-blur-md px-6 max-w-lg mx-auto">
+                  <AlertCircle className="size-8 text-red-400 mx-auto mb-3" />
+                  <h3 className="text-base font-bold text-white mb-1">Failed to load leaderboard</h3>
+                  <p className="text-red-300 text-xs mb-4">{leaderboardError}</p>
+                  <button
+                    type="button"
+                    onClick={fetchLeaderboard}
+                    className="px-4 py-2 rounded-xl text-xs font-semibold bg-white/10 hover:bg-white/20 text-white transition-colors"
+                  >
+                    Retry
+                  </button>
+                </div>
+              ) : leaderboard && leaderboard.length === 0 ? (
+                <div className="text-center py-20 border border-white/[0.08] rounded-2xl bg-[var(--glass-bg)] backdrop-blur-md">
+                  <h3 className="text-lg font-semibold text-white">No projects evaluated yet</h3>
+                  <p className="text-slate-400 mt-1 text-sm">
+                    Judge evaluations have not yet been recorded.
+                  </p>
+                </div>
+              ) : leaderboard ? (
+                <div className="space-y-4">
+                  {/* Leaderboard Header */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-white/[0.06]">
+                    <div>
+                      <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight flex items-center gap-2">
+                        <Trophy className="size-5 sm:size-6 text-amber-400" />
+                        <span>Official Judge Ranking Leaderboard</span>
+                      </h2>
+                      <p className="text-xs sm:text-sm text-slate-400 mt-1">
+                        Ranked via Modified Z-Score (MAD method) normalized across all judge evaluations.
+                      </p>
+                    </div>
+                    <div className="text-xs text-slate-400 font-mono bg-white/[0.03] border border-white/[0.06] px-3 py-1.5 rounded-lg self-start sm:self-auto">
+                      Showing <span className="font-semibold text-white">{leaderboard.length}</span> ranked submissions
+                    </div>
+                  </div>
+
+                  {/* Leaderboard Ranked List */}
+                  <div className="space-y-3">
+                    {leaderboard.map((item, index) => {
+                      const isGold = item.rank === 1;
+                      const isSilver = item.rank === 2;
+                      const isBronze = item.rank === 3;
+
+                      return (
+                        <motion.div
+                          key={item.projectId}
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{
+                            duration: 0.25,
+                            delay: Math.min(index * 0.03, 0.4),
+                            ease: [0.16, 1, 0.3, 1],
+                          }}
+                          className={`p-4 sm:p-5 rounded-2xl border backdrop-blur-md flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all duration-200 hover:-translate-y-0.5 ${
+                            isGold
+                              ? 'bg-gradient-to-r from-amber-500/[0.14] via-amber-500/[0.04] to-transparent border-amber-500/40 shadow-[0_4px_24px_rgba(245,158,11,0.15)]'
+                              : isSilver
+                              ? 'bg-gradient-to-r from-slate-300/[0.12] via-slate-300/[0.03] to-transparent border-slate-300/40 shadow-[0_4px_24px_rgba(203,213,225,0.1)]'
+                              : isBronze
+                              ? 'bg-gradient-to-r from-amber-700/[0.12] via-amber-700/[0.03] to-transparent border-amber-600/40 shadow-[0_4px_24px_rgba(217,119,6,0.1)]'
+                              : 'bg-[var(--glass-bg)] border-[var(--glass-border)] hover:border-cyan-500/30'
+                          }`}
+                        >
+                          {/* Left: Rank Badge + Title + ID + Track */}
+                          <div className="flex items-center gap-3.5 min-w-0">
+                            {/* Rank Badge */}
+                            <div className="shrink-0">
+                              {isGold ? (
+                                <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border border-amber-500/50 bg-amber-500/20 text-amber-300 shadow-[0_0_15px_rgba(245,158,11,0.3)]">
+                                  <Trophy className="size-3.5 text-amber-400" />
+                                  <span>#1</span>
+                                </div>
+                              ) : isSilver ? (
+                                <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border border-slate-300/50 bg-slate-300/20 text-slate-200 shadow-[0_0_15px_rgba(203,213,225,0.25)]">
+                                  <Medal className="size-3.5 text-slate-300" />
+                                  <span>#2</span>
+                                </div>
+                              ) : isBronze ? (
+                                <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border border-amber-600/50 bg-amber-700/20 text-amber-300 shadow-[0_0_15px_rgba(217,119,6,0.25)]">
+                                  <Award className="size-3.5 text-amber-500" />
+                                  <span>#3</span>
+                                </div>
+                              ) : (
+                                <div className="inline-flex items-center justify-center w-11 py-1.5 rounded-full text-xs font-semibold font-mono border border-white/10 bg-white/5 text-slate-400">
+                                  #{item.rank}
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Project Details */}
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <h3 className="text-base font-bold text-white truncate hover:text-cyan-300 transition-colors">
+                                  {item.title}
+                                </h3>
+                                <span className="text-[11px] text-slate-500 font-mono">
+                                  {item.projectId}
+                                </span>
+                              </div>
+                              <div className="mt-1">
+                                <span
+                                  className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium border ${getTrackBadgeStyle(
+                                    item.trackName
+                                  )}`}
+                                >
+                                  {item.trackName}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Right: Scores & Review Count */}
+                          <div className="flex items-center gap-6 self-end md:self-center shrink-0">
+                            {/* Review Count */}
+                            <div className="text-right">
+                              <span className="text-[11px] text-slate-400 block font-medium">Evaluations</span>
+                              <span className="text-xs font-semibold text-slate-200 font-mono">
+                                {item.reviewCount} {item.reviewCount === 1 ? 'review' : 'reviews'}
+                              </span>
+                            </div>
+
+                            {/* Normalized Score Badge */}
+                            <div className="text-right min-w-[90px]">
+                              <span className="text-[11px] text-slate-400 block font-medium">Norm Score</span>
+                              <div className="inline-flex items-center gap-1 font-mono text-base font-bold text-cyan-300">
+                                <span>{item.normalizedScore.toFixed(2)}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </motion.div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          )}
         </div>
       )}
 
