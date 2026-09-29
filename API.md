@@ -781,5 +781,5 @@ Retrieves machine-readable OpenAPI 3.1.0 schema for the entire platform.
 ```bash
 curl -X GET http://localhost:8080/api/openapi.json
 ```
-* **Response (`200 OK`):** Valid OpenAPI 3.1.0 JSON covering 12 endpoints, security schemes (`sessionAuth`), component schemas, and parameters.
+* **Response (`200 OK`):** Valid OpenAPI 3.1.0 JSON covering 13 endpoints, security schemes (`sessionAuth`), component schemas, and parameters.
 

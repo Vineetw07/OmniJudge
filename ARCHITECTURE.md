@@ -284,5 +284,5 @@ The Tier 4 stretch surface expands OmniJudge into an extensible, API-first platf
 - **Atomic Ingest:** `POST /api/import` accepts platform backups or official `fixtures.json` payloads, executing bulk upserts inside an atomic `prisma.$transaction` with Zod schema validation.
 
 ### 5.5 OpenAPI 3.1 & Interactive Explorer (`/api-docs` & `/api/openapi.json`)
-- **Upstream OpenAPI 3.1.0 Specification:** Self-contained JSON schema at `/api/openapi.json` accurately documenting all 12 platform endpoints, path parameters, query contracts, and RFC status codes.
+- **Upstream OpenAPI 3.1.0 Specification:** Self-contained JSON schema at `/api/openapi.json` accurately documenting all 13 platform endpoints, path parameters, query contracts, and RFC status codes.
 - **Zero-Dependency Dark Explorer:** Built using native React Server Components and Lucide icons without bulky external Swagger UI or CDN dependencies.

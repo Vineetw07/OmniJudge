@@ -201,7 +201,7 @@ curl -s http://localhost:8080/api/openapi.json | head -c 200
 - **T4 Cryptographic Suite:** Run `npx tsx tests/test_t4_certificates.ts` (16/16 PASS) verifying HMAC signatures and anti-tampering.
 - **T4 Webhooks & Import Suite:** Run `npx tsx tests/test_t4_webhooks_and_import.ts` (11/11 PASS) verifying non-blocking dispatch and transactional bulk imports.
 - **T3 Integrity Specification:** Read [`COMMUNITY_INTEGRITY.md`](./COMMUNITY_INTEGRITY.md).
-- **REST API Specification:** Read [`API.md`](./API.md) covering all 12 platform endpoints.
+- **REST API Specification:** Read [`API.md`](./API.md) covering all 13 platform endpoints (including `GET /api/leaderboard`).
 
 
 ---
