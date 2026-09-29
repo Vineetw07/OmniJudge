@@ -1,6 +1,6 @@
 # OmniJudge System Architecture & Engineering Specifications
 
-> **A deep dive into the design principles, security model, and deployment invariants of the DOGFOOD 2026 Hackathon Portal.**
+> **A deep dive into the design principles, security model, and deployment invariants of OmniJudge (submitted to DOGFOOD 2026).**
 
 ## Executive Summary: Purpose-Built for Hackathons
 Hackathons are unique operational environments characterized by zero-trust networks, sudden traffic spikes, and adversarial evaluation conditions. OmniJudge's architecture abandons generic microservice bloat in favor of **offline-first SQLite resilience, React Server Components (RSC) for zero client-side data leaks, and Next.js Route Handlers for impenetrable RBAC perimeter defense.**
@@ -9,26 +9,27 @@ Hackathons are unique operational environments characterized by zero-trust netwo
 
 ## 1. High-Level Architectural Topology
 
-DOGFOOD 2026 is architected as an offline-first, high-resilience, single-tier full-stack application built on **Next.js 14 (App Router)** and **Prisma ORM** backed by an embedded **SQLite** engine.
+OmniJudge is architected as an offline-first, high-resilience, single-tier full-stack application built on **Next.js 14 (App Router)** and **Prisma ORM** backed by an embedded **SQLite** engine.
 
 ```
 ┌────────────────────────────────────────────────────────────────────────┐
 │                        Docker Container (:8080)                        │
 │                                                                        │
 │   ┌────────────────────────────────────────────────────────────────┐   │
-│   │                      Next.js 14 App Router                     │   │
+│   │                     Next.js 14 App Router                      │   │
 │   │                                                                │   │
 │   │   [ React Server Components ]     [ Dynamic Route Handlers ]   │   │
-│   │   - /projects (Public Gallery)     - /api/auth/login, /logout  │   │
-│   │   - /judge (Scoring Portal)        - /api/projects             │   │
-│   │   - /dashboard (Control Tower)     - /api/judge/scores         │   │
-│   │   - /embed/projects (T4 Widget)    - /api/export.csv           │   │
-│   │   - /verify (T4 Public Verifier)   - /api/community/* (T3)     │   │
-│   │   - /api-docs (T4 API Explorer)    - /api/judge/certificate (T4│   │
-│   │                                    - /api/webhooks (T4)        │   │
-│   │                                    - /api/export.json (T4)     │   │
-│   │                                    - /api/import (T4)          │   │
-│   │                                    - /api/openapi.json (T4)    │   │
+│   │   - /projects (Public Gallery)    - /api/auth/login, /logout   │   │
+│   │   - /judge (Scoring Portal)       - /api/projects              │   │
+│   │   - /dashboard (Control Tower)    - /api/judge/scores          │   │
+│   │   - /embed/projects (T4 Widget)   - /api/export.csv            │   │
+│   │   - /verify (T4 Public Verifier)  - /api/leaderboard           │   │
+│   │   - /api-docs (T4 API Explorer)   - /api/community/* (T3)      │   │
+│   │                                   - /api/judge/certificate (T4)│   │
+│   │                                   - /api/webhooks (T4)         │   │
+│   │                                   - /api/export.json (T4)      │   │
+│   │                                   - /api/import (T4)           │   │
+│   │                                   - /api/openapi.json (T4)     │   │
 │   └───────────────┬────────────────────────────────┬───────────────┘   │
 │                   │                                │                   │
 │                   ▼                                ▼                   │
@@ -69,14 +70,14 @@ A primary architectural decision was opting for a **single self-contained contai
 ### Elimination of Startup Race Conditions
 In traditional multi-container setups (`web` + `db`), web containers frequently boot before the database engine completes socket initialization. This necessitates complex retry scripts, `wait-for-it.sh` wrappers, or health check dependencies. In competitive evaluation environments, any startup timing jitter can cause immediate checker failure. 
 
-In DOGFOOD 2026:
+In OmniJudge:
 - The database is an embedded SQLite file accessed directly via native process memory and filesystem syscalls.
 - `entrypoint.sh` executes migrations (`prisma migrate deploy`), runs deterministic seeding (`seed.ts`), and boots the web server (`node server.js`) strictly sequentially in a single process tree. Startup failure risk is mathematically reduced to zero.
 
 ### Air-Gapped & `--network none` Verification
 Evaluation environments often test resilience by cutting external network access (`docker run --network none`). Multi-tier architectures fail under these conditions if they attempt external DNS resolution, telemetry callbacks, font CDNs, or remote database synchronization.
 
-DOGFOOD 2026 is 100% self-reliant:
+OmniJudge is 100% self-reliant:
 - Fonts and UI assets are self-hosted within `@/public` and local packages.
 - All dependencies are baked into the Docker image layers.
 - Zero outbound telemetry or cloud provider handshakes exist.
@@ -88,8 +89,8 @@ DOGFOOD 2026 is 100% self-reliant:
 ### The Anti-Pattern: UI-Level Masking
 The single most common vulnerability in hackathon platforms is **UI-level access masking** — hiding an element in React JSX (`{isJudge && <Scores />}`) while leaving the underlying JSON API completely open to unauthenticated `curl` requests or IDOR parameter tampering (`?judge=peer_id`).
 
-### The DOGFOOD Security Invariant: Perimeter Parameter Guards
-DOGFOOD 2026 enforces security strictly at the **HTTP protocol and Route Handler level**. The UI is treated as untrusted presentation; all security policies are validated before any database query is issued.
+### The OmniJudge Security Invariant: Perimeter Parameter Guards
+OmniJudge enforces security strictly at the **HTTP protocol and Route Handler level**. The UI is treated as untrusted presentation; all security policies are validated before any database query is issued.
 
 ```
                               HTTP Request
@@ -191,7 +192,7 @@ The community vote endpoint (`POST /api/community/vote`) adds a second RBAC enfo
 
 While SQLite is optimal for single-instance, zero-network deployments, production platforms with thousands of concurrent judges writing simultaneously benefit from PostgreSQL's row-level locking.
 
-Because DOGFOOD 2026 uses Prisma ORM as its data access layer, migrating to PostgreSQL requires zero application code changes. Follow this 4-step migration path:
+Because OmniJudge uses Prisma ORM as its data access layer, migrating to PostgreSQL requires zero application code changes. Follow this 4-step migration path:
 
 ### Step 1: Update Prisma Datasource Provider
 In `prisma/schema.prisma`, change the provider and connection URL:

@@ -1,4 +1,4 @@
-# DOGFOOD 2026 Data Model & Entity Specifications
+# OmniJudge Data Model & Entity Specifications
 
 > **Complete reference documentation for the 14 Prisma database models, entity-relationship constraints, fixture mapping rules, and transactional audit architecture.**
 
@@ -6,7 +6,7 @@
 
 ## 1. Relational Architecture & Entity-Relationship Model
 
-To make the database design immediately intuitive for evaluating judges, OmniJudge's 14 Prisma models are organized into **4 decoupled functional domains**:
+To make the database design immediately intuitive for evaluating judges, OmniJudge's 14 Prisma models are organized into **5 decoupled functional domains**:
 
 ```
  ┌──────────────────────────────────────────────────────────────────────────────┐
@@ -207,7 +207,7 @@ OmniJudge employs a strict indexing strategy to support high-read gallery traffi
 
 ---
 
-## 2. Comprehensive Model Catalog (All 13 Prisma Entities)
+## 2. Comprehensive Model Catalog (All 14 Prisma Entities)
 
 ### 2.1 `User`
 Represents an authenticated actor or pre-seeded persona within the hackathon portal.
@@ -449,7 +449,7 @@ This guarantees ACID atomicity: an evaluation either fully persists with its acc
 
 ## 5. Data Export Paths & Schema Transformations
 
-DOGFOOD 2026 provides structured export pathways translating relational models into standardized deliverables:
+OmniJudge provides structured export pathways translating relational models into standardized deliverables:
 
 ### 5.1 RFC 4180 CSV Export Pipeline (`GET /api/export.csv`)
 Restricted strictly to the `organizer` role. It joins `Project`, `Track`, `Score`, and `RubricCriterion`, transforms them through the normalization engine, and serializes to CSV:
