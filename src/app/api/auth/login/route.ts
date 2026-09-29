@@ -41,33 +41,36 @@ export async function POST(req: NextRequest) {
 
   if (!user) {
     return NextResponse.json(
-      { error: 'User with this email not found' },
+      { error: 'Invalid credentials' },
       { status: 401 }
     );
   }
 
-  // 2. Find active session or create new one
-  let session = await prisma.session.findFirst({
-    where: {
+  // 2. Always issue a fresh, cryptographically secure session token (never reuse seeded tokens)
+  const token = crypto.randomUUID();
+  const expiresAt = new Date();
+  expiresAt.setDate(expiresAt.getDate() + 30); // 30 days session validity
+
+  const session = await prisma.session.create({
+    data: {
+      id: token,
       userId: user.id,
-      expiresAt: { gt: new Date() },
+      expiresAt,
     },
-    orderBy: { createdAt: 'desc' },
   });
 
-  if (!session) {
-    const token = crypto.randomUUID();
-    const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 30); // 30 days session validity
-
-    session = await prisma.session.create({
-      data: {
-        id: token,
-        userId: user.id,
-        expiresAt,
-      },
-    });
-  }
+  // 3. Immutable audit trail on login
+  await prisma.auditLog.create({
+    data: {
+      userId: user.id,
+      action: 'user_login',
+      payload: JSON.stringify({
+        email: user.email,
+        role: user.role,
+        timestamp: new Date().toISOString(),
+      }),
+    },
+  });
 
   // 3. Build response with Set-Cookie header
   const response = NextResponse.json({

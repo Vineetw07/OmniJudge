@@ -9,7 +9,7 @@ OmniJudge is a self-hostable hackathon judging portal with three role-separated 
 
 Security is enforced at the HTTP boundary — not the UI layer. Every route handler runs a three-layer check (401 session → 403 role → 403 IDOR) before any database query executes. Judges cannot read peer scores even via direct curl.
 
-Score fairness uses Modified Z-Score (MAD method) instead of classical Z-score, which crashes with NaN when a judge awards every project the same score. The fixture's jdg_30 (Rafa Okonkwo) does exactly this — our zero-variance guard handles it cleanly. The full mathematical derivation of the 0.6745 constant is in JUDGING.md.
+Score fairness uses Modified Z-Score (MAD method) instead of classical Z-score, which crashes with NaN when a judge awards every project the same score. The fixture's jdg_07 (Iva Petrova) does exactly this (identical 12.0 scores), alongside single-review judges (jdg_01, jdg_23) — our zero-variance and epsilon (< 1e-9) guards handle them cleanly. The full mathematical derivation of the 0.6745 constant is in JUDGING.md.
 
 Additional integrity mechanisms: sealed results invariant (vote counts return null over the wire until the organizer unseals), self-vote defense via TeamMember relational check, atomic prisma.$transaction on every multi-table write, immutable AuditLog trail for all judging and community events, and 10-second sliding-window comment rate limiting backed by the database.
 """

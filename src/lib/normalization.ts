@@ -2,21 +2,30 @@
  * Cross-judge score normalisation using Modified Z-Score (MAD method).
  *
  * WHY NOT STANDARD Z-SCORE:
- * The fixtures.json deliberately includes a judge (jdg_30, Rafa Okonkwo) who gave
- * every single project the same score. Standard z-score divides by standard deviation,
- * which equals 0 for this judge → divide-by-zero → NaN crash.
+ * The fixtures.json deliberately includes a zero-variance judge (jdg_30, Rafa Okonkwo)
+ * who gave every single project the exact same composite score (12.0), as well as
+ * single-review panels (jdg_01, jdg_23). Standard z-score divides by sample standard deviation,
+ * which equals 0 for these judges → divide-by-zero → NaN crash.
  *
  * WHY MAD (Median Absolute Deviation):
  * MAD is robust to outliers and handles the zero-variance case explicitly.
- * When MAD = 0 (all scores identical), we return 0 for every project —
- * treating the judge as providing no discriminating signal, rather than crashing.
+ * When MAD < 1e-9 (all scores identical or within IEEE-754 floating-point 1-ULP tolerance),
+ * we return 0 for every project — treating the judge as providing no discriminating signal,
+ * rather than crashing or exploding with pseudo-deviations.
  *
- * FORMULA (when MAD > 0):
- *   modified_z_i = 0.6745 × (x_i − median) / MAD
+ * FORMULA (when MAD >= 1e-9):
+ *   modified_z_i = 0.6745 × (x_i − median) / scale
  *
  * The constant 0.6745 makes the modified z-score consistent with the standard
  * z-score for normally distributed data (0.6745 ≈ Φ⁻¹(0.75)).
  */
+
+export const EPSILON = 1e-9;
+
+export interface NormaliseOptions {
+  shrink?: boolean;
+  minSpread?: number;
+}
 
 /**
  * Normalise a single judge's scores using Modified Z-Score (MAD).
@@ -27,7 +36,10 @@
  * normaliseJudgeScores([3, 4, 5, 3, 4]) // → array of modified z-scores
  * normaliseJudgeScores([3, 3, 3, 3])    // → [0, 0, 0, 0]  (zero-variance judge)
  */
-export function normaliseJudgeScores(scores: number[]): number[] {
+export function normaliseJudgeScores(
+  scores: number[],
+  options?: NormaliseOptions
+): number[] {
   if (scores.length === 0) return [];
   if (!scores.every((s) => typeof s === 'number' && Number.isFinite(s))) {
     return scores.map(() => 0);
@@ -51,13 +63,18 @@ export function normaliseJudgeScores(scores: number[]): number[] {
       ? sortedDevs[mid]
       : (sortedDevs[mid - 1] + sortedDevs[mid]) / 2;
 
-  // Zero-variance guard: judge gave every project the same score.
-  // Return neutral zeros — no signal, no crash.
-  if (mad === 0) {
+  // Zero-variance & floating-point precision guard:
+  // Handles identical scores, single review panels, and IEEE-754 1-ULP composite differences.
+  // When MAD < EPSILON, return neutral zeros — no signal, no crash, no 10^15 z-score blowup.
+  if (mad < EPSILON) {
     return scores.map(() => 0);
   }
 
-  return scores.map((s) => (0.6745 * (s - median)) / mad);
+  const minSpread = options?.minSpread;
+  const scale = minSpread !== undefined ? Math.max(mad, minSpread / 0.6745) : mad;
+  const shrink = options?.shrink ? scores.length / (scores.length + 3) : 1;
+
+  return scores.map((s) => (shrink * 0.6745 * (s - median)) / scale);
 }
 
 /**

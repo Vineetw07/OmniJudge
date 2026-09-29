@@ -121,6 +121,8 @@ model Score {
   judge     User            @relation(fields: [judgeId], references: [id])
   project   Project         @relation(fields: [projectId], references: [id])
   criterion RubricCriterion @relation(fields: [criterionId], references: [id])
+
+  @@unique([judgeId, projectId, criterionId])
 }
 
 model AuditLog {

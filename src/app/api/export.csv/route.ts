@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { computeRankedProjects } from '@/lib/ranking';
+import { prisma } from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
 
@@ -43,8 +44,20 @@ export async function GET(req: NextRequest) {
 
   const projectResults = await computeRankedProjects();
 
-  // Generate CSV content (Line 1 MUST contain comma)
-  const header = 'project_id,project_title,track,raw_score,normalized_score,rank';
+  // Audit Log export action
+  await prisma.auditLog.create({
+    data: {
+      userId: session.id,
+      action: 'csv_exported',
+      payload: JSON.stringify({
+        projectCount: projectResults.length,
+        exportedAt: new Date().toISOString(),
+      }),
+    },
+  });
+
+  // Generate CSV content with UTF-8 BOM (\uFEFF) and review_count (Line 1 MUST contain comma)
+  const header = 'project_id,project_title,track,raw_score,normalized_score,review_count,rank';
   const rows = projectResults.map((p) => {
     return [
       escapeCsvField(p.projectId),
@@ -52,11 +65,12 @@ export async function GET(req: NextRequest) {
       escapeCsvField(p.trackName),
       p.rawScore.toFixed(2),
       p.normalizedScore.toFixed(4),
+      p.reviewCount,
       p.rank,
     ].join(',');
   });
 
-  const csvContent = [header, ...rows].join('\r\n');
+  const csvContent = '\uFEFF' + [header, ...rows].join('\r\n');
 
   return new NextResponse(csvContent, {
     status: 200,

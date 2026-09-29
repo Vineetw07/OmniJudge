@@ -423,10 +423,10 @@ def run_all_probes():
 
     # 4.7 CSV Line 1 Format (Header contains comma and correct columns)
     t = TestCaseResult("P4_07", "CSV Line 1 contains comma and expected columns", "Probe 4")
-    lines = [line.strip() for line in body.splitlines() if line.strip()]
+    lines = [line.strip().lstrip("\ufeff") for line in body.splitlines() if line.strip()]
     if lines and "," in lines[0]:
         header_cols = [c.strip() for c in lines[0].split(",")]
-        expected_cols = ["project_id", "project_title", "track", "raw_score", "normalized_score", "rank"]
+        expected_cols = ["project_id", "project_title", "track", "raw_score", "normalized_score", "review_count", "rank"]
         if header_cols == expected_cols:
             t.pass_test(status, f"Line 1 valid: {lines[0]}", lines[0])
         else:

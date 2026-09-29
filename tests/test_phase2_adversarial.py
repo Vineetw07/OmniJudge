@@ -413,13 +413,13 @@ def run_tests():
         t.record_failure(status, body, headers, f"Expected 200 with Set-Cookie, got {status}")
     results.append(t)
 
-    # 3.9 Email leading/trailing whitespace probe (verifies Zod chaining defect)
-    t = TestResult("BUG_CONFIRMATION_LOGIN_WHITESPACE_TRIM", "Confirms Zod chaining defect: z.string().email().trim() rejects untrimmed emails with 400")
+    # 3.9 Email leading/trailing whitespace probe (trimmed properly by backend)
+    t = TestResult("POST_LOGIN_WHITESPACE_TRIM", "POST /api/auth/login with whitespace email is trimmed and accepted with 200")
     status, body, headers = make_request("/api/auth/login", method="POST", body={"email": "   participant@dogfood.dev   "})
-    if status == 400:
-        t.record_success(status, "Confirmed: backend returns 400 because .email() runs before .trim()", headers)
+    if status == 200:
+        t.record_success(status, "Confirmed: backend trims email and succeeds with 200", headers)
     else:
-        t.record_failure(status, body, headers, f"Expected 400 confirming defect, got {status}")
+        t.record_failure(status, body, headers, f"Expected 200, got {status}")
     results.append(t)
 
     # 3.10 Verify newly logged-in participant token works for POST /api/projects

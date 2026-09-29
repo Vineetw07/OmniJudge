@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic';
 const ScoreItemSchema = z
   .object({
     criterionId: z.string().min(1, 'criterionId is required'),
-    value: z.number().min(0).max(5),
+    value: z.number().min(0, 'Score cannot be negative'),
   })
   .strict();
 
@@ -129,8 +129,9 @@ export async function GET(req: NextRequest) {
 /**
  * POST /api/judge/scores
  *
- * Allows authenticated judges to submit rubric scores for projects in assigned tracks.
- * Uses atomic transaction for score upserts and immutable audit logging.
+ * Allows authenticated judges to submit complete rubric scores for projects in assigned tracks.
+ * Blocks organizers from scoring, guards against unsubmitted drafts, validates dynamic maxScores,
+ * uses atomic upserts to prevent race duplicates, and logs before/after diffs in the audit trail.
  */
 export async function POST(req: NextRequest) {
   const session = await getSession(req);
@@ -141,13 +142,10 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  if (
-    session.role !== 'judge' &&
-    session.role !== 'organizer' &&
-    session.role !== 'admin'
-  ) {
+  // Strict RBAC: Only assigned judges may submit scores (organizers and participants are barred)
+  if (session.role !== 'judge') {
     return NextResponse.json(
-      { error: 'Forbidden: Only judges and organizers may submit scores' },
+      { error: 'Forbidden: Only judges may submit scores' },
       { status: 403 }
     );
   }
@@ -185,90 +183,129 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Check judge track assignment and conflict of interest if user is a judge
-  if (session.role === 'judge') {
-    const assignment = await prisma.judgeAssignment.findFirst({
-      where: {
-        userId: session.id,
-        trackId: project.trackId,
-      },
-    });
-
-    if (!assignment) {
-      return NextResponse.json(
-        {
-          error: `Forbidden: Judge is not assigned to track '${project.track?.name || project.trackId}'`,
-        },
-        { status: 403 }
-      );
-    }
-
-    // Conflict of Interest (COI) Defense: Bar judges from evaluating their own team's project
-    const isTeamMember = await prisma.teamMember.findFirst({
-      where: {
-        userId: session.id,
-        teamId: project.teamId,
-      },
-    });
-
-    if (isTeamMember) {
-      return NextResponse.json(
-        {
-          error: 'Forbidden: Conflict of interest — judges cannot evaluate their own team project',
-        },
-        { status: 403 }
-      );
-    }
-  }
-
-  // Verify all criterion IDs exist before running transaction
-  const criterionIds = data.scores.map((s) => s.criterionId);
-  const foundCriteria = await prisma.rubricCriterion.findMany({
-    where: { id: { in: criterionIds } },
-  });
-
-  if (foundCriteria.length !== criterionIds.length) {
+  // Guard against scoring unsubmitted drafts
+  if (project.isDraft) {
     return NextResponse.json(
-      { error: 'One or more criterion IDs are invalid' },
+      { error: 'Cannot score an unsubmitted draft project' },
       { status: 400 }
     );
   }
 
-  // Atomic transaction: upsert scores & record audit log
+  // Check judge track assignment
+  const assignment = await prisma.judgeAssignment.findFirst({
+    where: {
+      userId: session.id,
+      trackId: project.trackId,
+    },
+  });
+
+  if (!assignment) {
+    return NextResponse.json(
+      {
+        error: `Forbidden: Judge is not assigned to track '${project.track?.name || project.trackId}'`,
+      },
+      { status: 403 }
+    );
+  }
+
+  // Conflict of Interest (COI) Defense: Bar judges from evaluating their own team's project
+  const isTeamMember = await prisma.teamMember.findFirst({
+    where: {
+      userId: session.id,
+      teamId: project.teamId,
+    },
+  });
+
+  if (isTeamMember) {
+    return NextResponse.json(
+      {
+        error: 'Forbidden: Conflict of interest — judges cannot evaluate their own team project',
+      },
+      { status: 403 }
+    );
+  }
+
+  // Fetch all active rubric criteria
+  const allCriteria = await prisma.rubricCriterion.findMany();
+  const allCriteriaMap = new Map(allCriteria.map((c) => [c.id, c]));
+
+  // Verify all submitted criterion IDs exist
+  const submittedIds = new Set(data.scores.map((s) => s.criterionId));
+  for (const cid of Array.from(submittedIds)) {
+    if (!allCriteriaMap.has(cid)) {
+      return NextResponse.json(
+        { error: `One or more criterion IDs are invalid: ${cid}` },
+        { status: 400 }
+      );
+    }
+  }
+
+  // Enforce complete rubric submission (all criteria must be evaluated)
+  if (data.scores.length !== allCriteria.length || submittedIds.size !== allCriteria.length) {
+    return NextResponse.json(
+      {
+        error: `Validation failed: Complete rubric required. Submitted ${data.scores.length} of ${allCriteria.length} criteria.`,
+      },
+      { status: 400 }
+    );
+  }
+
+  // Validate dynamic maxScore per criterion
+  for (const item of data.scores) {
+    const crit = allCriteriaMap.get(item.criterionId)!;
+    if (item.value > crit.maxScore) {
+      return NextResponse.json(
+        {
+          error: `Validation failed: Score for criterion '${crit.name}' exceeds maximum allowed (${crit.maxScore})`,
+        },
+        { status: 400 }
+      );
+    }
+  }
+
+  // Capture existing scores for verifiable audit diff
+  const previousScores = await prisma.score.findMany({
+    where: {
+      judgeId: session.id,
+      projectId: data.projectId,
+    },
+  });
+  const prevMap = new Map(previousScores.map((s) => [s.criterionId, s.value]));
+
+  // Atomic transaction: upsert scores & record immutable audit log with diffs
   await prisma.$transaction(async (tx) => {
     for (const item of data.scores) {
-      const existing = await tx.score.findFirst({
+      await tx.score.upsert({
         where: {
-          judgeId: session.id,
-          projectId: data.projectId,
-          criterionId: item.criterionId,
-        },
-      });
-
-      if (existing) {
-        await tx.score.update({
-          where: { id: existing.id },
-          data: {
-            value: item.value,
-            comment: data.comment || '',
-            submittedAt: new Date(),
-          },
-        });
-      } else {
-        await tx.score.create({
-          data: {
+          judgeId_projectId_criterionId: {
             judgeId: session.id,
             projectId: data.projectId,
             criterionId: item.criterionId,
-            value: item.value,
-            comment: data.comment || '',
-            submittedAt: new Date(),
           },
-        });
-      }
+        },
+        update: {
+          value: item.value,
+          comment: data.comment || '',
+          submittedAt: new Date(),
+        },
+        create: {
+          judgeId: session.id,
+          projectId: data.projectId,
+          criterionId: item.criterionId,
+          value: item.value,
+          comment: data.comment || '',
+          submittedAt: new Date(),
+        },
+      });
     }
 
-    // Immutable audit trail
+    const scoreDiffs = data.scores.map((item) => ({
+      criterionId: item.criterionId,
+      previousValue: prevMap.get(item.criterionId) ?? null,
+      newValue: item.value,
+    }));
+
+    // Immutable audit trail with before/after state
     await tx.auditLog.create({
       data: {
         userId: session.id,
@@ -276,7 +313,7 @@ export async function POST(req: NextRequest) {
         payload: JSON.stringify({
           projectId: data.projectId,
           trackId: project.trackId,
-          scores: data.scores,
+          scores: scoreDiffs,
           comment: data.comment || '',
           submittedAt: new Date().toISOString(),
         }),
@@ -291,7 +328,9 @@ export async function POST(req: NextRequest) {
     trackId: project.trackId,
     scoresCount: data.scores.length,
     timestamp: new Date().toISOString(),
-  }).catch(() => {});
+  }).catch((err) => {
+    console.error('Failed to dispatch score.submitted webhook:', err);
+  });
 
   return NextResponse.json(
     { success: true, message: 'Scores submitted successfully' },

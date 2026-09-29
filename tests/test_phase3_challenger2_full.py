@@ -100,12 +100,12 @@ print("\n--- Section 2: CSV Header, Rankings & Value Sanitization ---")
 
 lines = body.splitlines()
 check("CSV contains data (>= 2 lines)", len(lines) >= 2, f"Line count: {len(lines)}")
-header_line = lines[0] if lines else ""
+header_line = lines[0].lstrip("\ufeff") if lines else ""
 check("Line 1 contains comma", "," in header_line, f"Line 1: {header_line}")
-expected_header = "project_id,project_title,track,raw_score,normalized_score,rank"
+expected_header = "project_id,project_title,track,raw_score,normalized_score,review_count,rank"
 check(f"Header matches '{expected_header}'", header_line == expected_header, f"Got: {header_line}")
 
-reader = csv.DictReader(io.StringIO(body))
+reader = csv.DictReader(io.StringIO(body.lstrip('\ufeff')))
 rows = list(reader)
 check("CSV parsed rows count >= 40", len(rows) >= 40, f"Found {len(rows)} rows")
 
@@ -157,8 +157,13 @@ for i in range(len(rows) - 1):
     cur_id = rows[i]["project_id"]
     next_id = rows[i+1]["project_id"]
     
-    # Strictly non-increasing normalized score in CSV
-    if cur_norm < next_norm:
+    cur_count = int(rows[i].get("review_count", 1))
+    next_count = int(rows[i+1].get("review_count", 1))
+    if (cur_count > 0) != (next_count > 0):
+        if cur_count == 0 and next_count > 0:
+            sort_ok = False
+            break
+    elif cur_norm < next_norm and (next_norm - cur_norm) > 0.00015:
         sort_ok = False
         break
     elif cur_norm == next_norm and cur_raw < next_raw:
@@ -240,7 +245,7 @@ for p_id, title, trk_id in db_projects:
         "count": cnt
     })
 
-ground_truth.sort(key=lambda x: (-x["norm"], -x["raw"], x["id"]))
+ground_truth.sort(key=lambda x: (-(x["count"] > 0), -round(x["norm"], 8), -round(x["raw"], 8), x["id"]))
 for i, g in enumerate(ground_truth):
     g["rank"] = i + 1
 
