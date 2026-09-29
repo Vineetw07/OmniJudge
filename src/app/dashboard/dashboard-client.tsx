@@ -14,7 +14,6 @@ import {
   Download,
   Trophy,
   History,
-  ShieldCheck,
   Search,
   Vote,
   Lock,
@@ -53,6 +52,8 @@ export interface CommunityGovernanceData {
   uniqueVoters: number;
   votingOpen: boolean;
   resultsPublic: boolean;
+  submissionsOpen?: boolean;
+  submissionsClose?: string;
   topFavorites: CommunityFavoriteItem[];
 }
 
@@ -125,6 +126,7 @@ export function DashboardClient({
   // Community Voting Governance State
   const [votingOpen, setVotingOpen] = React.useState(communityGovernance.votingOpen);
   const [resultsPublic, setResultsPublic] = React.useState(communityGovernance.resultsPublic);
+  const [submissionsOpen, setSubmissionsOpen] = React.useState(communityGovernance.submissionsOpen ?? false);
   const [isUpdatingSettings, setIsUpdatingSettings] = React.useState(false);
   const [feedbackMessage, setFeedbackMessage] = React.useState<string | null>(null);
   const [feedbackType, setFeedbackType] = React.useState<'success' | 'error' | null>(null);
@@ -269,15 +271,17 @@ export function DashboardClient({
 
   // Handler for organizer governance toggles (POST /api/community/settings)
   const handleToggleSetting = async (
-    key: 'votingOpen' | 'resultsPublic',
+    key: 'votingOpen' | 'resultsPublic' | 'submissionsOpen',
     nextVal: boolean
   ) => {
     const prevVotingOpen = votingOpen;
     const prevResultsPublic = resultsPublic;
+    const prevSubmissionsOpen = submissionsOpen;
 
     // Optimistic UI state update
     if (key === 'votingOpen') setVotingOpen(nextVal);
     if (key === 'resultsPublic') setResultsPublic(nextVal);
+    if (key === 'submissionsOpen') setSubmissionsOpen(nextVal);
 
     setIsUpdatingSettings(true);
     setFeedbackMessage(null);
@@ -296,20 +300,28 @@ export function DashboardClient({
 
       setVotingOpen(data.votingOpen);
       setResultsPublic(data.resultsPublic);
+      if (typeof data.submissionsOpen === 'boolean') {
+        setSubmissionsOpen(data.submissionsOpen);
+      }
       setFeedbackType('success');
       const label =
         key === 'votingOpen'
           ? nextVal
             ? 'Community voting window opened'
             : 'Community voting window closed'
+          : key === 'resultsPublic'
+          ? nextVal
+            ? 'Public results unsealed (live visible)'
+            : 'Public results sealed (hidden from non-organizers)'
           : nextVal
-          ? 'Public results unsealed (live visible)'
-          : 'Public results sealed (hidden from non-organizers)';
+          ? 'Project submissions window opened'
+          : 'Project submissions window closed';
       setFeedbackMessage(label);
     } catch (err) {
       // Revert optimistic state on error
       setVotingOpen(prevVotingOpen);
       setResultsPublic(prevResultsPublic);
+      setSubmissionsOpen(prevSubmissionsOpen);
       setFeedbackType('error');
       setFeedbackMessage(
         err instanceof Error ? err.message : 'Error updating community settings'
@@ -395,16 +407,7 @@ export function DashboardClient({
       {/* Control Bar / Top Status Banner */}
       <div className="border-b border-white/[0.06] bg-black/20 backdrop-blur-md sticky top-16 z-20">
         <div className="max-w-[1560px] mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-cyan-500/10 text-cyan-400 border border-cyan-500/25">
-              <ShieldCheck className="size-3.5" />
-              <span>Control Tower</span>
-            </div>
-            <span className="text-xs text-muted-foreground hidden sm:inline">•</span>
-            <span className="text-xs text-muted-foreground hidden sm:inline">
-              Real-time Judging Telemetry
-            </span>
-          </div>
+          <div className="flex items-center gap-2.5" />
 
           <div className="flex items-center gap-3 text-xs">
             <div className="flex items-center gap-2">
@@ -435,9 +438,6 @@ export function DashboardClient({
             <h1 className="text-3xl font-extrabold tracking-tight text-foreground">
               Organizer Dashboard
             </h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              Live judging progress, MAD-normalized leaderboard, and immutable audit logs.
-            </p>
           </div>
 
           {/* Action Bar Buttons */}
@@ -566,16 +566,7 @@ export function DashboardClient({
                 <div>
                   <h2 className="text-lg font-bold tracking-tight text-foreground flex items-center gap-2">
                     <span>Community Voting Governance</span>
-                    <Badge
-                      variant="outline"
-                      className="text-[10px] font-mono border-emerald-500/30 text-emerald-400 bg-emerald-500/10"
-                    >
-                      T3 MODULE
-                    </Badge>
                   </h2>
-                  <p className="text-xs text-muted-foreground">
-                    Manage voting window lifecycle, toggle public results disclosure, and inspect live ballot rankings.
-                  </p>
                 </div>
               </div>
             </div>
@@ -605,6 +596,53 @@ export function DashboardClient({
               </AnimatePresence>
 
               <div className="flex flex-wrap items-center gap-3">
+                {/* 0. Toggle: Submissions Open / Close */}
+                <div className="flex items-center gap-3 bg-white/[0.03] border border-white/10 px-3.5 py-2 rounded-xl">
+                  <div className="flex flex-col">
+                    <span className="text-[11px] font-semibold text-foreground flex items-center gap-1">
+                      {submissionsOpen ? (
+                        <Unlock className="size-3 text-emerald-400" />
+                      ) : (
+                        <Lock className="size-3 text-rose-400" />
+                      )}
+                      <span>Submissions Portal</span>
+                    </span>
+                    <span className="text-[10px] text-muted-foreground">
+                      {submissionsOpen ? 'Accepting projects' : 'Submissions locked'}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={submissionsOpen}
+                    aria-label="Toggle Project Submissions Window"
+                    disabled={isUpdatingSettings}
+                    onClick={() => handleToggleSetting('submissionsOpen', !submissionsOpen)}
+                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-emerald-500/50 ${
+                      submissionsOpen
+                        ? 'bg-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.4)]'
+                        : 'bg-white/20'
+                    } ${isUpdatingSettings ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  >
+                    <span
+                      aria-hidden="true"
+                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
+                        submissionsOpen ? 'translate-x-5' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                  <Badge
+                    variant="outline"
+                    className={`text-[10px] font-mono py-0.5 ${
+                      submissionsOpen
+                        ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                        : 'bg-rose-500/10 text-rose-400 border-rose-500/30'
+                    }`}
+                  >
+                    {submissionsOpen ? 'OPEN' : 'CLOSED'}
+                  </Badge>
+                </div>
+
                 {/* 1. Toggle: Voting Open / Close */}
                 <div className="flex items-center gap-3 bg-white/[0.03] border border-white/10 px-3.5 py-2 rounded-xl">
                   <div className="flex flex-col">

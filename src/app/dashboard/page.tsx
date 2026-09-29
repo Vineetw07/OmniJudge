@@ -113,7 +113,7 @@ export default async function DashboardPage() {
       take: 5,
     }),
     prisma.event.findFirst({
-      select: { votingOpen: true, resultsPublic: true },
+      select: { votingOpen: true, resultsPublic: true, submissionsClose: true },
     }),
     prisma.webhookSubscription.findMany({
       orderBy: { createdAt: 'desc' },
@@ -335,11 +335,17 @@ export default async function DashboardPage() {
     totalReviews: scores.length,
   };
 
+  const isSubmissionsOpen = eventState
+    ? new Date(eventState.submissionsClose).getTime() > Date.now()
+    : false;
+
   const communityGovernance: CommunityGovernanceData = {
     totalVotes: totalCommunityVotes,
     uniqueVoters: uniqueCommunityVoters,
     votingOpen: eventState?.votingOpen ?? true,
     resultsPublic: eventState?.resultsPublic ?? false,
+    submissionsOpen: isSubmissionsOpen,
+    submissionsClose: eventState?.submissionsClose.toISOString(),
     topFavorites: topCommunityFavorites.map((p) => ({
       id: p.id,
       title: p.title,

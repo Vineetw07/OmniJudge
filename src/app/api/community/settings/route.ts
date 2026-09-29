@@ -10,25 +10,36 @@ const SettingsSchema = z
   .object({
     resultsPublic: z.boolean().optional(),
     votingOpen: z.boolean().optional(),
+    submissionsOpen: z.boolean().optional(),
   })
   .refine(
-    (data) => data.resultsPublic !== undefined || data.votingOpen !== undefined,
+    (data) =>
+      data.resultsPublic !== undefined ||
+      data.votingOpen !== undefined ||
+      data.submissionsOpen !== undefined,
     {
-      message: 'At least one setting (resultsPublic or votingOpen) must be provided',
+      message:
+        'At least one setting (resultsPublic, votingOpen, or submissionsOpen) must be provided',
     }
   );
 
 /**
  * GET /api/community/settings
- * Returns the current votingOpen and resultsPublic lifecycle flags.
+ * Returns the current votingOpen, resultsPublic, and submissionsOpen lifecycle flags.
  */
 export async function GET() {
   try {
     const event = await prisma.event.findFirst();
+    const isSubmissionsOpen = event
+      ? new Date(event.submissionsClose).getTime() > Date.now()
+      : false;
+
     return NextResponse.json({
       success: true,
       votingOpen: event?.votingOpen ?? true,
       resultsPublic: event?.resultsPublic ?? false,
+      submissionsOpen: isSubmissionsOpen,
+      submissionsClose: event?.submissionsClose ? event.submissionsClose.toISOString() : null,
     });
   } catch (error) {
     console.error('Error in GET /api/community/settings:', error);
@@ -93,12 +104,23 @@ export async function POST(req: NextRequest) {
     }
 
     // 5. Update event flags
-    const updateData: { resultsPublic?: boolean; votingOpen?: boolean } = {};
+    const updateData: {
+      resultsPublic?: boolean;
+      votingOpen?: boolean;
+      submissionsClose?: Date;
+    } = {};
     if (typeof parseResult.data.resultsPublic === 'boolean') {
       updateData.resultsPublic = parseResult.data.resultsPublic;
     }
     if (typeof parseResult.data.votingOpen === 'boolean') {
       updateData.votingOpen = parseResult.data.votingOpen;
+    }
+    if (typeof parseResult.data.submissionsOpen === 'boolean') {
+      // If true, extend submissionsClose to 7 days from now so submissions can be accepted.
+      // If false, set submissionsClose to 1 second in the past to immediately lock submissions.
+      updateData.submissionsClose = parseResult.data.submissionsOpen
+        ? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+        : new Date(Date.now() - 1000);
     }
 
     const updatedEvent = await prisma.event.update({
@@ -124,10 +146,15 @@ export async function POST(req: NextRequest) {
       }).catch(() => {});
     }
 
+    const isSubmissionsOpen =
+      new Date(updatedEvent.submissionsClose).getTime() > Date.now();
+
     return NextResponse.json({
       success: true,
       votingOpen: updatedEvent.votingOpen,
       resultsPublic: updatedEvent.resultsPublic,
+      submissionsOpen: isSubmissionsOpen,
+      submissionsClose: updatedEvent.submissionsClose.toISOString(),
     });
   } catch (error) {
     console.error('Error in POST /api/community/settings:', error);

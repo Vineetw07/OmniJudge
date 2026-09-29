@@ -26,10 +26,15 @@ import {
   Lock,
   LayoutGrid,
   RefreshCw,
+  Plus,
 } from 'lucide-react';
 import Link from 'next/link';
 import type { Prisma } from '@prisma/client';
 import { ProjectCommentsDrawer } from '@/components/ProjectCommentsDrawer';
+import {
+  ProjectSubmissionModal,
+  type TrackOption,
+} from '@/components/ProjectSubmissionModal';
 import type { LeaderboardEntry } from '@/lib/ranking';
 
 export type ProjectWithRelations = Prisma.ProjectGetPayload<{
@@ -41,6 +46,9 @@ interface ProjectsClientProps {
   initialUserVotedIds?: string[];
   initialVotingOpen?: boolean;
   initialResultsPublic?: boolean;
+  initialSubmissionsOpen?: boolean;
+  submissionsClose?: string | null;
+  tracks?: TrackOption[];
   initialVoteCounts?: Record<string, number> | null;
   initialCommentCounts?: Record<string, number>;
   initialLeaderboard?: LeaderboardEntry[] | null;
@@ -130,6 +138,9 @@ export function ProjectsClient({
   initialUserVotedIds = [],
   initialVotingOpen = true,
   initialResultsPublic = false,
+  initialSubmissionsOpen = false,
+  submissionsClose = null,
+  tracks = [],
   initialVoteCounts = null,
   initialCommentCounts = {},
   initialLeaderboard = null,
@@ -137,6 +148,9 @@ export function ProjectsClient({
   currentUserId = null,
   currentUserRole = null,
 }: ProjectsClientProps) {
+  const [projectsList, setProjectsList] = useState<ProjectWithRelations[]>(initialProjects);
+  const [submissionsOpen] = useState<boolean>(initialSubmissionsOpen);
+  const [isSubmissionModalOpen, setIsSubmissionModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'gallery' | 'rankings'>('gallery');
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[] | null>(initialLeaderboard);
   const [loadingLeaderboard, setLoadingLeaderboard] = useState<boolean>(false);
@@ -223,18 +237,18 @@ export function ProjectsClient({
       // sessionStorage unavailable
     }
 
-    const shuffled = fisherYatesShuffle(initialProjects.map((p) => p.id));
+    const shuffled = fisherYatesShuffle(projectsList.map((p) => p.id));
     try {
       sessionStorage.setItem('omnijudge_ballot_order', JSON.stringify(shuffled));
     } catch {
       // sessionStorage unavailable
     }
     setSessionBallotOrder(shuffled);
-  }, [initialProjects]);
+  }, [projectsList]);
 
   // Reshuffle ballot action (re-generates Fisher-Yates order)
   const handleReshuffle = useCallback(() => {
-    const shuffled = fisherYatesShuffle(initialProjects.map((p) => p.id));
+    const shuffled = fisherYatesShuffle(projectsList.map((p) => p.id));
     try {
       sessionStorage.setItem('omnijudge_ballot_order', JSON.stringify(shuffled));
     } catch {
@@ -247,7 +261,17 @@ export function ProjectsClient({
       type: 'info',
       message: 'Ballot randomized. Display order shuffled to neutralize bias.',
     });
-  }, [initialProjects]);
+  }, [projectsList]);
+
+  // Handler for project submission callback
+  const handleProjectSubmitted = useCallback((newProject: ProjectWithRelations) => {
+    setProjectsList((prev) => [newProject, ...prev]);
+    setNotification({
+      id: `submit_${Date.now()}`,
+      type: 'success',
+      message: `Project "${newProject.title}" has been successfully submitted to the gallery!`,
+    });
+  }, []);
 
   // Stable drawer handlers to prevent re-render cascades
   const handleCommentCountChange = useCallback((projId: string, newCount: number) => {
@@ -380,7 +404,7 @@ export function ProjectsClient({
 
   // Filter projects by search and track
   const filteredProjects = useMemo(() => {
-    return initialProjects.filter((p) => {
+    return projectsList.filter((p) => {
       const q = searchQuery.trim().toLowerCase();
       const matchesSearch =
         q === '' ||
@@ -391,7 +415,7 @@ export function ProjectsClient({
       const matchesTrk = matchesTrack(p.track?.name, selectedTrack);
       return matchesSearch && matchesTrk;
     });
-  }, [initialProjects, searchQuery, selectedTrack]);
+  }, [projectsList, searchQuery, selectedTrack]);
 
   // Sort projects: randomized ballot (default) or user-selected ordering
   const sortedProjects = useMemo(() => {
@@ -544,8 +568,8 @@ export function ProjectsClient({
         <>
           {/* Controls Container */}
           <div className="flex flex-col gap-4">
-        {/* Top Row: Search Input */}
-        <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4">
+        {/* Top Row: Search Input + Submit Project Action Button */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
           <div className="relative max-w-xl w-full">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-slate-400" />
             <input
@@ -565,6 +589,27 @@ export function ProjectsClient({
                 <X className="size-4" />
               </button>
             )}
+          </div>
+
+          {/* Submit Project Button & Portal Status Pill */}
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={() => setIsSubmissionModalOpen(true)}
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold bg-gradient-to-r from-cyan-500 to-emerald-500 text-slate-950 hover:brightness-110 shadow-[0_0_20px_rgba(56,189,248,0.3)] transition-all cursor-pointer"
+            >
+              <Plus className="size-4 text-slate-950 stroke-[2.5]" />
+              <span>Submit Project</span>
+              <span
+                className={`text-[9px] font-mono px-1.5 py-0.5 rounded font-bold uppercase tracking-wider ${
+                  submissionsOpen
+                    ? 'bg-slate-950/20 text-slate-950'
+                    : 'bg-rose-950/30 text-rose-950'
+                }`}
+              >
+                {submissionsOpen ? 'OPEN' : 'LOCKED'}
+              </span>
+            </button>
           </div>
         </div>
 
@@ -634,7 +679,7 @@ export function ProjectsClient({
 
             <div className="text-xs text-slate-400 bg-white/[0.03] border border-white/[0.06] px-3 py-1.5 rounded-lg">
               Showing <span className="font-semibold text-white">{sortedProjects.length}</span> of{' '}
-              {initialProjects.length}
+              {projectsList.length}
             </div>
 
             <button
@@ -1098,6 +1143,18 @@ export function ProjectsClient({
           </div>
         </div>
       )}
+
+      {/* Project Submission Modal for Participants */}
+      <ProjectSubmissionModal
+        isOpen={isSubmissionModalOpen}
+        onClose={() => setIsSubmissionModalOpen(false)}
+        submissionsOpen={submissionsOpen}
+        submissionsClose={submissionsClose}
+        tracks={tracks}
+        currentUserId={currentUserId}
+        currentUserRole={currentUserRole}
+        onProjectSubmitted={handleProjectSubmitted}
+      />
     </div>
   );
 }

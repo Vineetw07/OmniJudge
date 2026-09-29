@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 };
 
 export default async function ProjectsPage() {
-  const [projects, session, event] = await Promise.all([
+  const [projects, session, event, tracks] = await Promise.all([
     prisma.project.findMany({
       take: 40,
       orderBy: { id: 'asc' },
@@ -26,12 +26,23 @@ export default async function ProjectsPage() {
       select: {
         votingOpen: true,
         resultsPublic: true,
+        submissionsClose: true,
       },
+    }),
+    prisma.track.findMany({
+      select: {
+        id: true,
+        name: true,
+      },
+      orderBy: { name: 'asc' },
     }),
   ]);
 
   const votingOpen = event?.votingOpen ?? true;
   const resultsPublic = event?.resultsPublic ?? false;
+  const submissionsOpen = event
+    ? new Date(event.submissionsClose).getTime() > Date.now()
+    : false;
   const isOrganizerOrAdmin = session?.role === 'organizer' || session?.role === 'admin';
 
   // Get user's voted project IDs if authenticated
@@ -97,12 +108,15 @@ export default async function ProjectsPage() {
         </p>
       </div>
 
-      {/* Client island for search, track filtering, randomized ballot, voting, comments and judge rankings */}
+      {/* Client island for search, track filtering, randomized ballot, voting, comments, submissions, and judge rankings */}
       <ProjectsClient
         initialProjects={projects}
         initialUserVotedIds={userVotedIds}
         initialVotingOpen={votingOpen}
         initialResultsPublic={resultsPublic}
+        initialSubmissionsOpen={submissionsOpen}
+        submissionsClose={event?.submissionsClose.toISOString() ?? null}
+        tracks={tracks}
         initialVoteCounts={voteCounts}
         initialCommentCounts={commentCounts}
         initialLeaderboard={initialLeaderboard}
