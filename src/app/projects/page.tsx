@@ -85,6 +85,7 @@ export default async function ProjectsPage() {
     const ranked = await computeRankedProjects();
     initialLeaderboard = ranked.map((p) => ({
       rank: p.rank,
+      trackRank: p.trackRank,
       projectId: p.projectId,
       title: p.title,
       trackName: p.trackName,

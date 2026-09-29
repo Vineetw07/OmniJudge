@@ -155,6 +155,7 @@ export function ProjectsClient({
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[] | null>(initialLeaderboard);
   const [loadingLeaderboard, setLoadingLeaderboard] = useState<boolean>(false);
   const [leaderboardError, setLeaderboardError] = useState<string | null>(null);
+  const [rankingTrack, setRankingTrack] = useState<string>('All');
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTrack, setSelectedTrack] = useState<FilterTrack>('All');
@@ -447,6 +448,46 @@ export function ProjectsClient({
         return list;
     }
   }, [filteredProjects, sortOrder, sessionBallotOrder, commentCounts]);
+
+  // Dynamic track options for judge rankings derived from event tracks, projects, and leaderboard
+  const rankingTrackOptions = useMemo(() => {
+    const set = new Set<string>();
+    if (tracks && tracks.length > 0) {
+      tracks.forEach((t) => {
+        if (t.name) set.add(t.name);
+      });
+    }
+    if (leaderboard) {
+      leaderboard.forEach((item) => {
+        if (item.trackName) set.add(item.trackName);
+      });
+    }
+    projectsList.forEach((p) => {
+      if (p.track?.name) set.add(p.track.name);
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [tracks, leaderboard, projectsList]);
+
+  // Rankings filtered by track with trackRank recalculated
+  const displayedRankings = useMemo(() => {
+    if (!leaderboard) return [];
+    if (rankingTrack === 'All') {
+      return leaderboard.map((item) => ({
+        ...item,
+        effectiveRank: item.rank,
+        isTrackView: false,
+      }));
+    }
+    const trackLower = rankingTrack.toLowerCase();
+    const trackItems = leaderboard.filter(
+      (item) => (item.trackName || '').toLowerCase() === trackLower
+    );
+    return trackItems.map((item, index) => ({
+      ...item,
+      effectiveRank: index + 1,
+      isTrackView: true,
+    }));
+  }, [leaderboard, rankingTrack]);
 
   const showTotalVoteCounts = resultsPublic || isOrganizerOrAdmin;
 
@@ -937,120 +978,260 @@ export function ProjectsClient({
                   </p>
                 </div>
               ) : leaderboard ? (
-                <div className="space-y-4">
+                <div className="space-y-5">
                   {/* Leaderboard Header */}
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-white/[0.06]">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-white/[0.06]">
                     <div>
                       <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight flex items-center gap-2">
                         <Trophy className="size-5 sm:size-6 text-amber-400" />
-                        <span>Official Judge Ranking Leaderboard</span>
+                        <span>
+                          {rankingTrack === 'All'
+                            ? 'Official Judge Ranking Leaderboard'
+                            : `${rankingTrack} Standings`}
+                        </span>
                       </h2>
                       <p className="text-xs sm:text-sm text-slate-400 mt-1">
-                        Ranked via Modified Z-Score (MAD method) normalized across all judge evaluations.
+                        {rankingTrack === 'All'
+                          ? 'Overall Standings (Grand Champion View) • Ranked via Modified Z-Score (MAD method) normalized across all judge evaluations.'
+                          : `Per-Track Standings (Category Winners View) • Re-indexed 1st, 2nd, 3rd within the ${rankingTrack} track with normalized scores.`}
                       </p>
                     </div>
                     <div className="text-xs text-slate-400 font-mono bg-white/[0.03] border border-white/[0.06] px-3 py-1.5 rounded-lg self-start sm:self-auto">
-                      Showing <span className="font-semibold text-white">{leaderboard.length}</span> ranked submissions
+                      Showing <span className="font-semibold text-white">{displayedRankings.length}</span> {rankingTrack === 'All' ? 'ranked submissions' : `in ${rankingTrack}`}
                     </div>
                   </div>
 
-                  {/* Leaderboard Ranked List */}
-                  <div className="space-y-3">
-                    {leaderboard.map((item, index) => {
-                      const isGold = item.rank === 1;
-                      const isSilver = item.rank === 2;
-                      const isBronze = item.rank === 3;
+                  {/* Dual Leaderboard Track Filter Strip */}
+                  <div className="space-y-1.5">
+                    <span className="text-[11px] font-mono uppercase tracking-wider text-slate-400 block font-medium">
+                      Leaderboard View
+                    </span>
+                    <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-white/10">
+                      <button
+                        type="button"
+                        onClick={() => setRankingTrack('All')}
+                        className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                          rankingTrack === 'All'
+                            ? 'bg-amber-500/20 border border-amber-500/50 text-amber-300 shadow-[0_0_15px_rgba(245,158,11,0.25)]'
+                            : 'bg-white/[0.03] border border-white/[0.08] text-slate-400 hover:text-slate-200 hover:bg-white/[0.06]'
+                        }`}
+                      >
+                        <Trophy className="size-3.5 text-amber-400" />
+                        <span>All Tracks (Overall)</span>
+                        <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-white/10 text-slate-300">
+                          {leaderboard.length}
+                        </span>
+                      </button>
 
-                      return (
-                        <motion.div
-                          key={item.projectId}
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{
-                            duration: 0.25,
-                            delay: Math.min(index * 0.03, 0.4),
-                            ease: [0.16, 1, 0.3, 1],
-                          }}
-                          className={`p-4 sm:p-5 rounded-2xl border backdrop-blur-md flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all duration-200 hover:-translate-y-0.5 ${
-                            isGold
-                              ? 'bg-gradient-to-r from-amber-500/[0.14] via-amber-500/[0.04] to-transparent border-amber-500/40 shadow-[0_4px_24px_rgba(245,158,11,0.15)]'
-                              : isSilver
-                              ? 'bg-gradient-to-r from-slate-300/[0.12] via-slate-300/[0.03] to-transparent border-slate-300/40 shadow-[0_4px_24px_rgba(203,213,225,0.1)]'
-                              : isBronze
-                              ? 'bg-gradient-to-r from-amber-700/[0.12] via-amber-700/[0.03] to-transparent border-amber-600/40 shadow-[0_4px_24px_rgba(217,119,6,0.1)]'
-                              : 'bg-[var(--glass-bg)] border-[var(--glass-border)] hover:border-cyan-500/30'
-                          }`}
-                        >
-                          {/* Left: Rank Badge + Title + ID + Track */}
-                          <div className="flex items-center gap-3.5 min-w-0">
-                            {/* Rank Badge */}
-                            <div className="shrink-0">
-                              {isGold ? (
-                                <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border border-amber-500/50 bg-amber-500/20 text-amber-300 shadow-[0_0_15px_rgba(245,158,11,0.3)]">
-                                  <Trophy className="size-3.5 text-amber-400" />
-                                  <span>#1</span>
-                                </div>
-                              ) : isSilver ? (
-                                <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border border-slate-300/50 bg-slate-300/20 text-slate-200 shadow-[0_0_15px_rgba(203,213,225,0.25)]">
-                                  <Medal className="size-3.5 text-slate-300" />
-                                  <span>#2</span>
-                                </div>
-                              ) : isBronze ? (
-                                <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border border-amber-600/50 bg-amber-700/20 text-amber-300 shadow-[0_0_15px_rgba(217,119,6,0.25)]">
-                                  <Award className="size-3.5 text-amber-500" />
-                                  <span>#3</span>
-                                </div>
-                              ) : (
-                                <div className="inline-flex items-center justify-center w-11 py-1.5 rounded-full text-xs font-semibold font-mono border border-white/10 bg-white/5 text-slate-400">
-                                  #{item.rank}
-                                </div>
-                              )}
-                            </div>
+                      {rankingTrackOptions.map((t) => {
+                        const count = leaderboard.filter(
+                          (i) => (i.trackName || '').toLowerCase() === t.toLowerCase()
+                        ).length;
+                        const isSelected = rankingTrack.toLowerCase() === t.toLowerCase();
+                        return (
+                          <button
+                            key={t}
+                            type="button"
+                            onClick={() => setRankingTrack(t)}
+                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                              isSelected
+                                ? 'bg-cyan-500/20 border border-cyan-500/50 text-cyan-300 shadow-[0_0_15px_rgba(56,189,248,0.25)]'
+                                : 'bg-white/[0.03] border border-white/[0.08] text-slate-400 hover:text-slate-200 hover:bg-white/[0.06]'
+                            }`}
+                          >
+                            <span>{t}</span>
+                            <span
+                              className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${
+                                isSelected ? 'bg-cyan-500/30 text-cyan-200' : 'bg-white/10 text-slate-400'
+                              }`}
+                            >
+                              {count}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
 
-                            {/* Project Details */}
-                            <div className="min-w-0">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <h3 className="text-base font-bold text-white truncate hover:text-cyan-300 transition-colors">
-                                  {item.title}
-                                </h3>
-                                <span className="text-[11px] text-slate-500 font-mono">
-                                  {item.projectId}
-                                </span>
-                              </div>
-                              <div className="mt-1">
-                                <span
-                                  className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium border ${getTrackBadgeStyle(
-                                    item.trackName
-                                  )}`}
-                                >
-                                  {item.trackName}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Right: Scores & Review Count */}
-                          <div className="flex items-center gap-6 self-end md:self-center shrink-0">
-                            {/* Review Count */}
-                            <div className="text-right">
-                              <span className="text-[11px] text-slate-400 block font-medium">Evaluations</span>
-                              <span className="text-xs font-semibold text-slate-200 font-mono">
-                                {item.reviewCount} {item.reviewCount === 1 ? 'review' : 'reviews'}
+                  {/* Category Winners Podium Cards (when viewing a specific track) */}
+                  {rankingTrack !== 'All' && displayedRankings.length > 0 && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1"
+                    >
+                      {displayedRankings.slice(0, 3).map((podiumItem, pIdx) => {
+                        const pRank = pIdx + 1;
+                        const isP1 = pRank === 1;
+                        const isP2 = pRank === 2;
+                        return (
+                          <div
+                            key={podiumItem.projectId}
+                            className={`p-4 rounded-xl border backdrop-blur-md relative overflow-hidden flex flex-col justify-between transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg ${
+                              isP1
+                                ? 'bg-gradient-to-b from-amber-500/[0.14] to-amber-500/[0.02] border-amber-500/40 shadow-[0_0_20px_rgba(245,158,11,0.15)]'
+                                : isP2
+                                ? 'bg-gradient-to-b from-slate-300/[0.12] to-slate-300/[0.02] border-slate-300/40 shadow-[0_0_20px_rgba(203,213,225,0.1)]'
+                                : 'bg-gradient-to-b from-amber-700/[0.12] to-amber-700/[0.02] border-amber-600/40 shadow-[0_0_20px_rgba(217,119,6,0.1)]'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between gap-2 mb-2">
+                              <span className="inline-flex items-center gap-1.5 text-xs font-bold text-white">
+                                {isP1 ? (
+                                  <>
+                                    <Trophy className="size-4 text-amber-400" />
+                                    <span className="text-amber-300">1st Place • Track Champion</span>
+                                  </>
+                                ) : isP2 ? (
+                                  <>
+                                    <Medal className="size-4 text-slate-300" />
+                                    <span className="text-slate-200">2nd Place • Runner-Up</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Award className="size-4 text-amber-500" />
+                                    <span className="text-amber-300">3rd Place</span>
+                                  </>
+                                )}
+                              </span>
+                              <span className="text-xs font-mono font-bold text-cyan-300">
+                                {podiumItem.normalizedScore.toFixed(2)} pts
                               </span>
                             </div>
-
-                            {/* Normalized Score Badge */}
-                            <div className="text-right min-w-[90px]">
-                              <span className="text-[11px] text-slate-400 block font-medium">Norm Score</span>
-                              <div className="inline-flex items-center gap-1 font-mono text-base font-bold text-cyan-300">
-                                <span>{item.normalizedScore.toFixed(2)}</span>
-                              </div>
+                            <div className="font-bold text-sm text-white truncate mb-1">
+                              {podiumItem.title}
+                            </div>
+                            <div className="flex items-center justify-between text-[11px] text-slate-400 font-mono mt-2 pt-2 border-t border-white/5">
+                              <span className="text-cyan-400">Overall #{podiumItem.rank}</span>
+                              <span>{podiumItem.reviewCount} {podiumItem.reviewCount === 1 ? 'review' : 'reviews'}</span>
                             </div>
                           </div>
-                        </motion.div>
-                      );
-                    })}
-                  </div>
+                        );
+                      })}
+                    </motion.div>
+                  )}
+
+                  {/* Empty state if track has 0 items */}
+                  {displayedRankings.length === 0 ? (
+                    <div className="text-center py-16 border border-white/[0.08] rounded-2xl bg-[var(--glass-bg)] backdrop-blur-md">
+                      <Award className="size-8 text-slate-500 mx-auto mb-2 opacity-50" />
+                      <h3 className="text-base font-semibold text-white">No ranked submissions in {rankingTrack}</h3>
+                      <p className="text-slate-400 mt-1 text-xs">
+                        No projects in this track have received judge evaluations yet.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setRankingTrack('All')}
+                        className="mt-4 px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-white/10 hover:bg-white/15 text-white transition-colors cursor-pointer"
+                      >
+                        View All Tracks (Overall)
+                      </button>
+                    </div>
+                  ) : (
+                    /* Leaderboard Ranked List */
+                    <div className="space-y-3">
+                      {displayedRankings.map((item, index) => {
+                        const isGold = item.effectiveRank === 1;
+                        const isSilver = item.effectiveRank === 2;
+                        const isBronze = item.effectiveRank === 3;
+
+                        return (
+                          <motion.div
+                            key={item.projectId}
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{
+                              duration: 0.25,
+                              delay: Math.min(index * 0.03, 0.4),
+                              ease: [0.16, 1, 0.3, 1],
+                            }}
+                            className={`p-4 sm:p-5 rounded-2xl border backdrop-blur-md flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all duration-200 hover:-translate-y-0.5 ${
+                              isGold
+                                ? 'bg-gradient-to-r from-amber-500/[0.14] via-amber-500/[0.04] to-transparent border-amber-500/40 shadow-[0_4px_24px_rgba(245,158,11,0.15)]'
+                                : isSilver
+                                ? 'bg-gradient-to-r from-slate-300/[0.12] via-slate-300/[0.03] to-transparent border-slate-300/40 shadow-[0_4px_24px_rgba(203,213,225,0.1)]'
+                                : isBronze
+                                ? 'bg-gradient-to-r from-amber-700/[0.12] via-amber-700/[0.03] to-transparent border-amber-600/40 shadow-[0_4px_24px_rgba(217,119,6,0.1)]'
+                                : 'bg-[var(--glass-bg)] border-[var(--glass-border)] hover:border-cyan-500/30'
+                            }`}
+                          >
+                            {/* Left: Rank Badge + Title + ID + Track */}
+                            <div className="flex items-center gap-3.5 min-w-0">
+                              {/* Rank Badge */}
+                              <div className="shrink-0">
+                                {isGold ? (
+                                  <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border border-amber-500/50 bg-amber-500/20 text-amber-300 shadow-[0_0_15px_rgba(245,158,11,0.3)]">
+                                    <Trophy className="size-3.5 text-amber-400" />
+                                    <span>#1</span>
+                                  </div>
+                                ) : isSilver ? (
+                                  <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border border-slate-300/50 bg-slate-300/20 text-slate-200 shadow-[0_0_15px_rgba(203,213,225,0.25)]">
+                                    <Medal className="size-3.5 text-slate-300" />
+                                    <span>#2</span>
+                                  </div>
+                                ) : isBronze ? (
+                                  <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border border-amber-600/50 bg-amber-700/20 text-amber-300 shadow-[0_0_15px_rgba(217,119,6,0.25)]">
+                                    <Award className="size-3.5 text-amber-500" />
+                                    <span>#3</span>
+                                  </div>
+                                ) : (
+                                  <div className="inline-flex items-center justify-center w-11 py-1.5 rounded-full text-xs font-semibold font-mono border border-white/10 bg-white/5 text-slate-400">
+                                    #{item.effectiveRank}
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Project Details */}
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <h3 className="text-base font-bold text-white truncate hover:text-cyan-300 transition-colors">
+                                    {item.title}
+                                  </h3>
+                                  <span className="text-[11px] text-slate-500 font-mono">
+                                    {item.projectId}
+                                  </span>
+                                  {item.isTrackView && (
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-mono font-medium border border-cyan-500/30 bg-cyan-500/10 text-cyan-300">
+                                      Overall #{item.rank}
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="mt-1">
+                                  <span
+                                    className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium border ${getTrackBadgeStyle(
+                                      item.trackName
+                                    )}`}
+                                  >
+                                    {item.trackName}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Right: Scores & Review Count */}
+                            <div className="flex items-center gap-6 self-end md:self-center shrink-0">
+                              {/* Review Count */}
+                              <div className="text-right">
+                                <span className="text-[11px] text-slate-400 block font-medium">Evaluations</span>
+                                <span className="text-xs font-semibold text-slate-200 font-mono">
+                                  {item.reviewCount} {item.reviewCount === 1 ? 'review' : 'reviews'}
+                                </span>
+                              </div>
+
+                              {/* Normalized Score Badge */}
+                              <div className="text-right min-w-[90px]">
+                                <span className="text-[11px] text-slate-400 block font-medium">Norm Score</span>
+                                <div className="inline-flex items-center gap-1 font-mono text-base font-bold text-cyan-300">
+                                  <span>{item.normalizedScore.toFixed(2)}</span>
+                                </div>
+                              </div>
+                            </div>
+                          </motion.div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               ) : null}
             </div>

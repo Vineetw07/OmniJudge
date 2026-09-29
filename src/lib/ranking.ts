@@ -3,6 +3,7 @@ import { normaliseAllJudges } from '@/lib/normalization';
 
 export interface RankedProject {
   rank: number;
+  trackRank: number;
   projectId: string;
   title: string;
   trackName: string;
@@ -13,6 +14,7 @@ export interface RankedProject {
 
 export interface LeaderboardEntry {
   rank: number;
+  trackRank?: number;
   projectId: string;
   title: string;
   trackName: string;
@@ -154,13 +156,19 @@ export async function computeRankedProjects(): Promise<RankedProject[]> {
     return a.id.localeCompare(b.id);
   });
 
-  return projectResults.map((p, index) => ({
-    rank: index + 1,
-    projectId: p.id,
-    title: p.title,
-    trackName: p.trackName,
-    rawScore: p.rawScore,
-    normalizedScore: p.normalizedScore,
-    reviewCount: p.reviewCount,
-  }));
+  const trackCounters = new Map<string, number>();
+  return projectResults.map((p, index) => {
+    const trackRank = (trackCounters.get(p.trackName) || 0) + 1;
+    trackCounters.set(p.trackName, trackRank);
+    return {
+      rank: index + 1,
+      trackRank,
+      projectId: p.id,
+      title: p.title,
+      trackName: p.trackName,
+      rawScore: p.rawScore,
+      normalizedScore: p.normalizedScore,
+      reviewCount: p.reviewCount,
+    };
+  });
 }

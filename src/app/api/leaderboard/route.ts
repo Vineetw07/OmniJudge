@@ -41,6 +41,7 @@ export async function GET(req: NextRequest) {
 
   const leaderboard = rankedProjects.map((p) => ({
     rank: p.rank,
+    trackRank: p.trackRank,
     projectId: p.projectId,
     title: p.title,
     trackName: p.trackName,

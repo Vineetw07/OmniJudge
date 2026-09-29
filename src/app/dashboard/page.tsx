@@ -226,10 +226,16 @@ export default async function DashboardPage() {
     return a.id.localeCompare(b.id);
   });
 
-  const leaderboard = projectResults.map((p, idx) => ({
-    ...p,
-    rank: idx + 1,
-  }));
+  const trackCounters = new Map<string, number>();
+  const leaderboard = projectResults.map((p, idx) => {
+    const trackRank = (trackCounters.get(p.trackName) || 0) + 1;
+    trackCounters.set(p.trackName, trackRank);
+    return {
+      ...p,
+      rank: idx + 1,
+      trackRank,
+    };
+  });
 
   // 6. Compute Judge Progress & Exact 4 KPIs
   const trackProjectCountMap = new Map<string, number>();

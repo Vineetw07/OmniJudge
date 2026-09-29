@@ -69,6 +69,7 @@ export interface JudgeProgressItem {
 
 export interface LeaderboardItem {
   rank: number;
+  trackRank?: number;
   id: string;
   title: string;
   trackName: string;
@@ -122,6 +123,7 @@ export function DashboardClient({
 }: DashboardClientProps) {
   const [activeTab, setActiveTab] = React.useState('leaderboard');
   const [searchQuery, setSearchQuery] = React.useState('');
+  const [leaderboardTrack, setLeaderboardTrack] = React.useState<string>('All Tracks');
 
   // Community Voting Governance State
   const [votingOpen, setVotingOpen] = React.useState(communityGovernance.votingOpen);
@@ -390,17 +392,46 @@ export function DashboardClient({
     };
   }, [recentAuditLogs, COMMUNITY_ACTIONS]);
 
+  const distinctTracks = React.useMemo(() => {
+    const set = new Set<string>();
+    leaderboard.forEach((item) => {
+      if (item.trackName) set.add(item.trackName);
+    });
+    return ['All Tracks', ...Array.from(set).sort((a, b) => a.localeCompare(b))];
+  }, [leaderboard]);
+
   const filteredLeaderboard = React.useMemo(() => {
-    if (!searchQuery.trim()) return leaderboard;
-    const q = searchQuery.toLowerCase();
-    return leaderboard.filter(
-      (p) =>
-        p.title.toLowerCase().includes(q) ||
-        p.trackName.toLowerCase().includes(q) ||
-        p.teamName.toLowerCase().includes(q) ||
-        p.id.toLowerCase().includes(q)
-    );
-  }, [leaderboard, searchQuery]);
+    let items = leaderboard;
+
+    // 1. Filter by track
+    if (leaderboardTrack !== 'All Tracks') {
+      const trackLower = leaderboardTrack.toLowerCase();
+      items = items.filter(
+        (p) => (p.trackName || '').toLowerCase() === trackLower
+      );
+    }
+
+    // Compute track-specific rank within track before search filtering
+    const withTrackRank = items.map((p, index) => ({
+      ...p,
+      computedTrackRank: leaderboardTrack !== 'All Tracks' ? index + 1 : (p.trackRank ?? index + 1),
+      isTrackView: leaderboardTrack !== 'All Tracks',
+    }));
+
+    // 2. Filter by search query
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      return withTrackRank.filter(
+        (p) =>
+          p.title.toLowerCase().includes(q) ||
+          p.trackName.toLowerCase().includes(q) ||
+          p.teamName.toLowerCase().includes(q) ||
+          p.id.toLowerCase().includes(q)
+      );
+    }
+
+    return withTrackRank;
+  }, [leaderboard, leaderboardTrack, searchQuery]);
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col">
@@ -919,58 +950,185 @@ export function DashboardClient({
             </TabsList>
 
             {activeTab === 'leaderboard' && (
-              <div className="relative">
-                <Search className="size-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-                <input
-                  type="text"
-                  placeholder="Filter projects, tracks, or teams..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-8 pr-3 py-1.5 text-xs rounded-xl border border-white/10 bg-white/5 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500/50 w-full sm:w-64 transition-all"
-                />
+              <div className="hidden lg:flex items-center gap-2">
+                <span className="text-xs text-muted-foreground font-mono">
+                  {leaderboardTrack !== 'All Tracks' ? `Filtered by ${leaderboardTrack}` : 'All Tracks (Overall)'}
+                </span>
               </div>
             )}
           </div>
 
           {/* TAB 1: MAD Leaderboard */}
-          <TabsContent value="leaderboard" className="space-y-4 m-0">
+          <TabsContent value="leaderboard" className="space-y-4 m-0" id="leaderboard">
             <motion.div
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.25, ease: 'easeOut' }}
               className="rounded-2xl border border-[var(--glass-border)] bg-[var(--glass-bg)] backdrop-blur-md overflow-hidden shadow-xl"
             >
-              <div className="p-5 border-b border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div>
-                  <h2 className="text-base font-semibold text-foreground">
-                    Ranked Project Leaderboard
-                  </h2>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    Ranked by MAD-normalized Modified Z-Score to neutralize harsh vs lenient judge biases. Ties broken by raw composite score.
-                  </p>
+              <div className="p-5 border-b border-white/10 space-y-4">
+                {/* Header Row: Title, Project Count Badge, and CSV Export */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <h2 className="text-base font-semibold text-foreground flex items-center gap-2">
+                      <Trophy className="size-4.5 text-amber-400" />
+                      <span>
+                        {leaderboardTrack === 'All Tracks'
+                          ? 'Ranked Project Leaderboard (Overall Standings)'
+                          : `${leaderboardTrack} Standings (Category Winners)`}
+                      </span>
+                    </h2>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {leaderboardTrack === 'All Tracks'
+                        ? 'Grand Champion View • Ranked by MAD-normalized Modified Z-Score across all evaluations. Ties broken by raw composite score.'
+                        : `Category Winners View • Re-indexed 1st, 2nd, 3rd within ${leaderboardTrack} with normalized scores.`}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Badge variant="outline" className="text-xs bg-white/5 border-white/10 text-cyan-400 font-mono">
+                      {filteredLeaderboard.length} Projects {leaderboardTrack !== 'All Tracks' ? `in ${leaderboardTrack}` : ''}
+                    </Badge>
+                    <a href="/api/export.csv" download="omnijudge_scores.csv">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="text-xs border-cyan-500/30 text-cyan-300 hover:bg-cyan-500/10 gap-1.5"
+                      >
+                        <Download className="size-3.5" />
+                        <span>Export CSV</span>
+                      </Button>
+                    </a>
+                  </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <Badge variant="outline" className="text-xs bg-white/5 border-white/10 text-cyan-400 font-mono">
-                    {filteredLeaderboard.length} Projects
-                  </Badge>
-                  <a href="/api/export.csv" download="omnijudge_scores.csv">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="text-xs border-cyan-500/30 text-cyan-300 hover:bg-cyan-500/10 gap-1.5"
-                    >
-                      <Download className="size-3.5" />
-                      <span>Export CSV</span>
-                    </Button>
-                  </a>
+
+                {/* Filter Row: Track Selector / Pill Bar alongside Text Search Bar */}
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pt-2 border-t border-white/5">
+                  {/* Track Selector / Pill Bar */}
+                  <div className="flex items-center gap-1.5 overflow-x-auto pb-1 lg:pb-0 scrollbar-thin">
+                    {distinctTracks.map((track) => {
+                      const isSelected = leaderboardTrack.toLowerCase() === track.toLowerCase();
+                      const count =
+                        track === 'All Tracks'
+                          ? leaderboard.length
+                          : leaderboard.filter(
+                              (p) => (p.trackName || '').toLowerCase() === track.toLowerCase()
+                            ).length;
+                      return (
+                        <button
+                          key={track}
+                          type="button"
+                          onClick={() => setLeaderboardTrack(track)}
+                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-xl font-medium whitespace-nowrap transition-all border cursor-pointer ${
+                            isSelected
+                              ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/50 shadow-[0_0_12px_rgba(56,189,248,0.25)] font-semibold'
+                              : 'bg-white/5 text-muted-foreground border-white/10 hover:bg-white/10 hover:text-foreground'
+                          }`}
+                        >
+                          <span>{track}</span>
+                          <span
+                            className={`text-[10px] font-mono px-1.5 py-0.2 rounded-full ${
+                              isSelected ? 'bg-cyan-500/30 text-cyan-200' : 'bg-white/10 text-muted-foreground'
+                            }`}
+                          >
+                            {count}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Text Search Bar */}
+                  <div className="relative shrink-0 w-full lg:w-72">
+                    <Search className="size-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                    <input
+                      type="text"
+                      placeholder="Filter projects, tracks, teams..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-8 pr-7 py-1.5 text-xs rounded-xl border border-white/10 bg-white/5 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500/50 w-full transition-all"
+                    />
+                    {searchQuery && (
+                      <button
+                        onClick={() => setSearchQuery('')}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer"
+                        aria-label="Clear search"
+                      >
+                        <X className="size-3.5" />
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
+
+              {/* Per-Track Podium Card Set (Category Winners showcase) */}
+              {leaderboardTrack !== 'All Tracks' && filteredLeaderboard.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="p-5 pb-0 grid grid-cols-1 sm:grid-cols-3 gap-3"
+                >
+                  {filteredLeaderboard.slice(0, 3).map((podiumItem) => {
+                    const isP1 = podiumItem.computedTrackRank === 1;
+                    const isP2 = podiumItem.computedTrackRank === 2;
+                    return (
+                      <div
+                        key={podiumItem.id}
+                        className={`p-4 rounded-xl border backdrop-blur-md relative overflow-hidden flex flex-col justify-between transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg ${
+                          isP1
+                            ? 'bg-gradient-to-b from-amber-500/[0.14] to-amber-500/[0.02] border-amber-500/40 shadow-[0_0_15px_rgba(245,158,11,0.15)]'
+                            : isP2
+                            ? 'bg-gradient-to-b from-slate-300/[0.12] to-slate-300/[0.02] border-slate-300/40 shadow-[0_0_15px_rgba(203,213,225,0.1)]'
+                            : 'bg-gradient-to-b from-amber-700/[0.12] to-amber-700/[0.02] border-amber-600/40 shadow-[0_0_15px_rgba(217,119,6,0.1)]'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-2 mb-1.5">
+                          <span className="inline-flex items-center gap-1.5 text-xs font-bold text-foreground">
+                            {isP1 ? (
+                              <>
+                                <span className="text-base leading-none">🥇</span>
+                                <span className="text-amber-300">1st Place • Track Champion</span>
+                              </>
+                            ) : isP2 ? (
+                              <>
+                                <span className="text-base leading-none">🥈</span>
+                                <span className="text-slate-200">2nd Place • Runner-Up</span>
+                              </>
+                            ) : (
+                              <>
+                                <span className="text-base leading-none">🥉</span>
+                                <span className="text-amber-400">3rd Place</span>
+                              </>
+                            )}
+                          </span>
+                          <Badge variant="outline" className="font-mono text-[11px] font-bold text-cyan-400 border-cyan-500/30">
+                            {podiumItem.normalizedScore > 0 ? '+' : ''}{podiumItem.normalizedScore.toFixed(2)} MAD
+                          </Badge>
+                        </div>
+                        <div className="font-bold text-sm text-foreground truncate">
+                          {podiumItem.title}
+                        </div>
+                        <div className="text-xs text-muted-foreground truncate mb-2">
+                          Team: {podiumItem.teamName}
+                        </div>
+                        <div className="flex items-center justify-between text-[11px] text-muted-foreground font-mono pt-2 border-t border-white/5">
+                          <span className="text-cyan-400 font-semibold">Global #{podiumItem.rank}</span>
+                          <span>Raw: {podiumItem.rawScore.toFixed(2)}</span>
+                          <span>{podiumItem.reviewCount} {podiumItem.reviewCount === 1 ? 'eval' : 'evals'}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </motion.div>
+              )}
 
               <div className="overflow-x-auto">
                 <table className="w-full text-xs text-left">
                   <thead className="bg-white/[0.02] border-b border-white/10 text-muted-foreground font-semibold uppercase tracking-wider">
                     <tr>
-                      <th className="py-3.5 px-4 w-16 text-center">Rank</th>
+                      <th className="py-3.5 px-4 w-24 text-center">
+                        {leaderboardTrack !== 'All Tracks' ? 'Track Rank' : 'Rank'}
+                      </th>
                       <th className="py-3.5 px-4">Project</th>
                       <th className="py-3.5 px-4">Track</th>
                       <th className="py-3.5 px-4">Team</th>
@@ -985,7 +1143,7 @@ export function DashboardClient({
                     {filteredLeaderboard.length === 0 ? (
                       <tr>
                         <td colSpan={7} className="py-12 text-center text-muted-foreground font-mono text-xs">
-                          No matching projects found.
+                          No matching projects found in {leaderboardTrack}.
                         </td>
                       </tr>
                     ) : (
@@ -995,7 +1153,30 @@ export function DashboardClient({
                           className="hover:bg-white/[0.02] transition-colors"
                         >
                           <td className="py-3.5 px-4 text-center">
-                            {item.rank === 1 ? (
+                            {item.isTrackView ? (
+                              <div>
+                                {item.computedTrackRank === 1 ? (
+                                  <span className="text-xl inline-block leading-none" title="Track Rank 1">
+                                    🥇
+                                  </span>
+                                ) : item.computedTrackRank === 2 ? (
+                                  <span className="text-xl inline-block leading-none" title="Track Rank 2">
+                                    🥈
+                                  </span>
+                                ) : item.computedTrackRank === 3 ? (
+                                  <span className="text-xl inline-block leading-none" title="Track Rank 3">
+                                    🥉
+                                  </span>
+                                ) : (
+                                  <span className="font-mono text-xs text-foreground font-semibold">
+                                    #{item.computedTrackRank}
+                                  </span>
+                                )}
+                                <div className="text-[10px] text-muted-foreground font-mono mt-0.5">
+                                  Overall #{item.rank}
+                                </div>
+                              </div>
+                            ) : item.rank === 1 ? (
                               <span className="text-xl inline-block leading-none" title="Rank 1">
                                 🥇
                               </span>
