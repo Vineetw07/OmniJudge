@@ -7,7 +7,7 @@
 
 ## 📹 5-Minute Demo Video
 
-- **Video Walkthrough:** [DOGFOOD 2026 - OmniJudge 5-Minute Lifecycle Walkthrough](https://youtu.be/placeholder-dogfood-omnijudge) *(Placeholder: Replace with actual submission video link)*
+- **Video Walkthrough:** https://www.youtube.com/watch?v=s14N4ufyas8
 - **Lifecycle Covered:** 
   1. **Gallery & Discovery (T1):** Public project exploration, search, track filtering, and embeddable widgets.
   2. **Role Isolation & Judging (T2):** Parameter-level RBAC, conflict-of-interest prevention, and private score submission.
@@ -40,7 +40,7 @@
 
 ## 🚀 Quickstart
 
-### Option A: Docker (Recommended for Evaluation)
+### Option A: Docker 
 
 The container automatically applies migrations, seeds deterministic fixtures, and starts the server on port `8080`:
 
@@ -129,11 +129,11 @@ All endpoints adhere strictly to HTTP standards, status codes, and security poli
 
 ---
 
-## 🎖️ Manual Evaluation Guide for Judges (Tier 3 & Tier 4 Stretch Surface)
+## 🎖️ Manual Evaluation Guide (Tier 3 & Tier 4 Stretch Surface)
 
 > **Important Note for Evaluators:** As designed by the DOGFOOD specification (`Hack_docs/spec.md`), the automated acceptance checker (`run.py`) exclusively verifies **T1** and **T2**. In accordance with the organizers' official guidance, `.dogfood.toml` strictly claims `["T1", "T2"]` to maintain a pristine `7/7 PASS` automated score without triggering overclaim penalties. **Tier 3 (Community Voting & Anti-Abuse Integrity)** and **Tier 4 (API-First Stretch Surface)** are fully implemented and designed for **manual evaluation**.
 
-Here is a 5-minute evaluation walkthrough for human judges:
+Here is a 5-minute evaluation walkthrough :
 
 ### 1. Peer Isolation defense
 - Test: **`403 Forbidden`** when Judge B requests Judge A's scores.
